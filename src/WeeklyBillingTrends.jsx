@@ -11,31 +11,28 @@ const WeeklyBillingTrends = () => {
   const [exportStatus, setExportStatus] = useState(null);
   const [clientNotes, setClientNotes] = useState({});
 
-  // Auto-load CSV from URL parameter
+  // Auto-load CSV from hardcoded Google Sheet URL
   React.useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const csvUrl = urlParams.get('csv');
+    const csvUrl = 'https://docs.google.com/spreadsheets/d/1IwjOdgUG-gHzaQdfwxyUtIcpkDFyFKBylfHhVJvtTe0/export?format=csv';
     
-    if (csvUrl) {
-      fetch(csvUrl)
-        .then(response => {
-          if (!response.ok) throw new Error('Failed to fetch CSV');
-          return response.text();
-        })
-        .then(text => {
-          const parsed = parseCSVData(text);
-          if (parsed.length > 0) {
-            setRawData(parsed);
-            setShowInstructions(false);
-          } else {
-            alert('No valid data found in the CSV file from URL.');
-          }
-        })
-        .catch(error => {
-          console.error('Error loading CSV from URL:', error);
-          alert('Failed to load CSV from URL. Make sure it\'s a direct download link.');
-        });
-    }
+    fetch(csvUrl)
+      .then(response => {
+        if (!response.ok) throw new Error('Failed to fetch CSV');
+        return response.text();
+      })
+      .then(text => {
+        const parsed = parseCSVData(text);
+        if (parsed.length > 0) {
+          setRawData(parsed);
+          setShowInstructions(false);
+        } else {
+          alert('No valid data found in the CSV file.');
+        }
+      })
+      .catch(error => {
+        console.error('Error loading CSV from Google Sheets:', error);
+        alert('Failed to load CSV from Google Sheets. Make sure the sheet is publicly shared.');
+      });
   }, []);
 
   const handleNotViableChange = (clientName, reason) => {
