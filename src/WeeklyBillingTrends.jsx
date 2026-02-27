@@ -1,1574 +1,925 @@
 import React, { useState, useMemo } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Clock, Users, Upload, Download } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Clock, Users, Upload, Download, ArrowRight, ChevronRight } from 'lucide-react';
 
+/* ─── Google Fonts ─────────────────────────────────────────────── */
+const FontLoader = () => (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --surface2: #1e2530;
+      --border:   #2a3140;
+      --text:     #e6edf3;
+      --muted:    #7d8590;
+      --teal:     #00d4aa;
+      --teal-dim: rgba(0,212,170,0.12);
+      --amber:    #f0a832;
+      --amber-dim:rgba(240,168,50,0.12);
+      --red:      #f07070;
+      --red-dim:  rgba(240,112,112,0.12);
+      --blue:     #58a6ff;
+      --blue-dim: rgba(88,166,255,0.12);
+      --green:    #56d364;
+    }
+    body { background: var(--bg); }
+    .dash { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 32px; }
+    .mono { font-family: 'DM Mono', monospace; }
+
+    /* Header */
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
+    .header h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; color: var(--text); }
+    .header-sub { color: var(--muted); font-size: 13px; margin-top: 6px; font-family: 'DM Mono', monospace; }
+    .upload-btn { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); cursor: pointer; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; transition: all 0.15s; }
+    .upload-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+    /* KPI grid */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; position: relative; overflow: hidden; }
+    .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+    .kpi-card.teal::before { background: var(--teal); }
+    .kpi-card.amber::before { background: var(--amber); }
+    .kpi-card.blue::before { background: var(--blue); }
+    .kpi-card.green::before { background: var(--green); }
+    .kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; }
+    .kpi-value { font-size: 30px; font-weight: 800; color: var(--text); font-family: 'DM Mono', monospace; }
+    .kpi-change { display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 12px; font-family: 'DM Mono', monospace; }
+    .kpi-change.up { color: var(--teal); }
+    .kpi-change.down { color: var(--red); }
+    .kpi-vs { color: var(--muted); font-size: 11px; }
+
+    /* Section card */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+    .card-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .card-sub { font-size: 12px; color: var(--muted); margin-bottom: 20px; font-family: 'DM Mono', monospace; }
+
+    /* Metric tabs */
+    .metric-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+    .tab { padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--muted); transition: all 0.15s; }
+    .tab.active { background: var(--teal-dim); border-color: var(--teal); color: var(--teal); }
+
+    /* Two-col grid */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+
+    /* Heatmap */
+    .heatmap-wrap { overflow-x: auto; }
+    .heatmap-table { border-collapse: collapse; width: 100%; min-width: 500px; }
+    .heatmap-table th { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--muted); text-align: center; padding: 4px 6px; font-weight: 400; }
+    .heatmap-table th.name-col { text-align: left; min-width: 140px; }
+    .heatmap-table td { padding: 3px 4px; }
+    .heatmap-table td.name-cell { font-size: 12px; color: var(--text); padding-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; font-weight: 500; }
+    .heat-cell { width: 36px; height: 26px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-family: 'DM Mono', monospace; font-size: 9px; cursor: default; transition: transform 0.1s; }
+    .heat-cell:hover { transform: scale(1.15); z-index: 10; position: relative; }
+    .hm-legend { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+    .hm-legend-label { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; }
+    .hm-legend-boxes { display: flex; gap: 3px; }
+    .hm-legend-box { width: 18px; height: 14px; border-radius: 3px; }
+
+    /* Funnel */
+    .funnel-container { display: flex; flex-direction: column; gap: 0; }
+    .funnel-stage { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; cursor: pointer; transition: all 0.15s; }
+    .funnel-stage:hover { border-color: var(--teal); }
+    .funnel-stage.active { border-color: var(--teal); background: var(--teal-dim); }
+    .funnel-connector { display: flex; align-items: center; justify-content: center; padding: 4px 0; gap: 12px; }
+    .funnel-connector .arrow { color: var(--muted); font-size: 18px; }
+    .funnel-connector .conv-rate { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--teal); background: var(--teal-dim); padding: 3px 10px; border-radius: 20px; border: 1px solid rgba(0,212,170,0.3); }
+    .stage-header { display: flex; justify-content: space-between; align-items: center; }
+    .stage-code { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--muted); background: var(--surface); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border); }
+    .stage-name { font-size: 14px; font-weight: 700; color: var(--text); margin-top: 4px; }
+    .stage-count { font-size: 32px; font-weight: 800; font-family: 'DM Mono', monospace; }
+    .stage-count.psych { color: var(--blue); }
+    .stage-count.assess { color: var(--amber); }
+    .stage-count.therapy { color: var(--teal); }
+    .stage-meta { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: 'DM Mono', monospace; }
+    .funnel-clients { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px; }
+    .funnel-client-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); }
+    .funnel-client-row:last-child { border-bottom: none; }
+    .fcr-name { font-size: 13px; font-weight: 600; color: var(--text); }
+    .fcr-meta { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 2px; }
+    .fcr-badge { font-size: 10px; font-family: 'DM Mono', monospace; padding: 3px 8px; border-radius: 4px; font-weight: 500; }
+    .badge-red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(240,112,112,0.3); }
+    .badge-amber { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(240,168,50,0.3); }
+    .badge-green { background: rgba(86,211,100,0.12); color: var(--green); border: 1px solid rgba(86,211,100,0.3); }
+    .badge-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(88,166,255,0.3); }
+    .badge-gray { background: rgba(125,133,144,0.15); color: var(--muted); border: 1px solid var(--border); }
+    .not-viable-select { font-size: 11px; font-family: 'DM Mono', monospace; background: var(--surface); border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 2px 6px; cursor: pointer; }
+
+    /* WoW changes */
+    .wow-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--border); background: var(--surface2); }
+    .wow-hours { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 3px; }
+
+    /* Table */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th { text-align: right; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+    .data-table th:first-child { text-align: left; }
+    .data-table td { padding: 11px 16px; text-align: right; font-size: 13px; color: var(--text); border-bottom: 1px solid var(--border); font-family: 'DM Mono', monospace; }
+    .data-table td:first-child { text-align: left; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; }
+    .data-table tr:hover td { background: var(--surface2); }
+    .data-table tr:last-child td { border-bottom: none; }
+
+    /* Export button */
+    .export-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; background: var(--teal-dim); border: 1px solid rgba(0,212,170,0.4); color: var(--teal); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; font-family: 'Syne', sans-serif; transition: all 0.15s; }
+    .export-btn:hover { background: rgba(0,212,170,0.2); }
+    .export-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Upload screen */
+    .upload-screen { min-height: 100vh; background: var(--bg); display: flex; align-items: center; justify-content: center; }
+    .upload-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 48px; max-width: 520px; width: 100%; }
+    .upload-card h2 { font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+    .upload-card p { font-size: 13px; color: var(--muted); margin-bottom: 28px; line-height: 1.6; }
+    .upload-steps { list-style: none; counter-reset: steps; margin-bottom: 28px; }
+    .upload-steps li { counter-increment: steps; display: flex; gap: 12px; padding: 8px 0; font-size: 13px; color: var(--muted); }
+    .upload-steps li::before { content: counter(steps); display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; min-width: 22px; border-radius: 50%; background: var(--teal-dim); color: var(--teal); font-size: 11px; font-weight: 700; border: 1px solid rgba(0,212,170,0.3); }
+    .upload-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 36px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--surface2); }
+    .upload-zone:hover { border-color: var(--teal); background: var(--teal-dim); }
+    .upload-zone input { display: none; }
+    .upload-icon { font-size: 32px; margin-bottom: 12px; }
+    .upload-zone-text { font-size: 14px; font-weight: 600; color: var(--teal); }
+    .upload-zone-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    /* Scrollable client list */
+    .client-scroll { max-height: 340px; overflow-y: auto; }
+    .client-scroll::-webkit-scrollbar { width: 4px; }
+    .client-scroll::-webkit-scrollbar-track { background: transparent; }
+    .client-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* tooltip override */
+    .recharts-tooltip-wrapper { font-family: 'DM Mono', monospace !important; }
+
+    /* Google Sheet panel */
+    .sheet-panel { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+    .sheet-panel-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+    .sheet-panel-title { font-size: 13px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .sheet-icon { width: 18px; height: 18px; background: #0f9d58; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: white; flex-shrink: 0; }
+    .sheet-body { margin-top: 14px; }
+
+    .sheet-sync-btn { padding: 8px 16px; background: rgba(15,157,88,0.15); border: 1px solid rgba(15,157,88,0.4); color: #0f9d58; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; font-family: 'Syne', sans-serif; white-space: nowrap; transition: all 0.15s; }
+    .sheet-sync-btn:hover { background: rgba(15,157,88,0.25); }
+    .sheet-hint { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 8px; line-height: 1.5; }
+    .sheet-hint strong { color: var(--text); }
+    .sheet-status-ok { color: #0f9d58; font-size: 11px; font-family: 'DM Mono', monospace; margin-top: 8px; }
+    .sheet-status-err { color: var(--red); font-size: 11px; font-family: 'DM Mono', monospace; margin-top: 8px; }
+    .sheet-status-loading { color: var(--muted); font-size: 11px; font-family: 'DM Mono', monospace; margin-top: 8px; }
+
+    /* Spanning arrow */
+    .funnel-wrap { position: relative; padding-bottom: 56px; }
+    .span-arrow { position: absolute; bottom: 0; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+    .span-bracket { width: 100%; display: flex; align-items: flex-start; height: 36px; }
+    .span-bracket-left { flex: 1; border-left: 2px dashed rgba(255,255,255,0.15); border-top: 2px dashed rgba(255,255,255,0.15); border-top-left-radius: 6px; height: 100%; }
+    .span-bracket-right { flex: 1; border-right: 2px dashed rgba(255,255,255,0.15); border-top: 2px dashed rgba(255,255,255,0.15); border-top-right-radius: 6px; height: 100%; }
+    .span-label { display: flex; align-items: center; gap: 8px; white-space: nowrap; padding: 0 16px; margin-top: -1px; }
+    .span-arrow-icon { color: rgba(255,255,255,0.25); font-size: 14px; }
+    .span-rate-pill { font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.25); color: var(--blue); padding: 4px 14px; border-radius: 20px; }
+    .span-days { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); }
+  `}</style>
+);
+
+/* ─── Heat cell color ──────────────────────────────────────────── */
+const heatColor = (hours, max) => {
+  if (!hours || hours === 0) return { bg: '#1e2530', text: '#3a4555' };
+  const pct = Math.min(hours / max, 1);
+  // 0→red, 0.5→amber, 1→green
+  const r = pct < 0.5 ? 220 : Math.round(220 - (pct - 0.5) * 2 * 160);
+  const g = pct < 0.5 ? Math.round(pct * 2 * 180) : 180;
+  const b = 40;
+  const alpha = 0.25 + pct * 0.7;
+  return {
+    bg: `rgba(${r},${g},${b},${alpha})`,
+    text: pct > 0.25 ? '#e6edf3' : '#7d8590'
+  };
+};
+
+/* ─── Main component ───────────────────────────────────────────── */
 const WeeklyBillingTrends = () => {
+  const BILLING_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1IwjOdgUG-gHzaQdfwxyUtIcpkDFyFKBylfHhVJvtTe0/export?format=csv&gid=413215624';
+  const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1RIV-wZCmC3mYTqOXu7Gk6-z-pT_HcXYIL459eWp2SMo/export?format=csv&gid=0';
   const [selectedMetric, setSelectedMetric] = useState('revenue');
   const [rawData, setRawData] = useState([]);
-  const [showInstructions, setShowInstructions] = useState(true);
+  const [showUpload, setShowUpload] = useState(false);
+  const [loadStatus, setLoadStatus] = useState({ type: 'loading', message: 'Loading billing data…' });
   const [notViableReasons, setNotViableReasons] = useState({});
+  const [activeFunnelStage, setActiveFunnelStage] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [exportStatus, setExportStatus] = useState(null);
-  const [clientNotes, setClientNotes] = useState({});
+  const [sheetStatus, setSheetStatus] = useState(null);
+  const [showSheetPanel, setShowSheetPanel] = useState(false);
 
-  // Auto-load CSV from hardcoded Google Sheet URL
-  React.useEffect(() => {
-    const csvUrl = 'https://docs.google.com/spreadsheets/d/1IwjOdgUG-gHzaQdfwxyUtIcpkDFyFKBylfHhVJvtTe0/export?format=csv';
-    
-    fetch(csvUrl)
-      .then(response => {
-        if (!response.ok) throw new Error('Failed to fetch CSV');
-        return response.text();
-      })
-      .then(text => {
-        const parsed = parseCSVData(text);
-        if (parsed.length > 0) {
-          setRawData(parsed);
-          setShowInstructions(false);
-        } else {
-          alert('No valid data found in the CSV file.');
-        }
-      })
-      .catch(error => {
-        console.error('Error loading CSV from Google Sheets:', error);
-        alert('Failed to load CSV from Google Sheets. Make sure the sheet is publicly shared.');
-      });
-  }, []);
-
-  const handleNotViableChange = (clientName, reason) => {
-    setNotViableReasons(prev => ({
-      ...prev,
-      [clientName]: reason
-    }));
-  };
-
-  const exportToHubSpot = async () => {
-    setIsExporting(true);
-    setExportStatus(null);
-    
+  // ── Google Sheet sync ──────────────────────────────────────────
+  const syncGoogleSheet = async () => {
+    setSheetStatus({ type: 'loading', message: 'Syncing not-viable reasons…' });
     try {
-      // Get conversion data with not viable reasons
-      const exportData = psychToABAConversion.needsConversion?.map(client => {
-        const [firstName, ...lastNameParts] = client.name.split(' ');
-        const lastName = lastNameParts.join(' ');
-        
-        return {
-          firstName,
-          lastName,
-          lastPsychDate: client.lastPsychDate?.toISOString().split('T')[0],
-          daysSincePsych: client.daysSincePsych,
-          psychSessions: client.psychSessions,
-          notViableReason: client.notViableReason || 'Active Lead',
-          status: client.notViableReason ? 'Not Viable' : 'Active Conversion Lead'
-        };
-      }) || [];
-      
-      // Create CSV export as fallback
-      const csvContent = [
-        ['First Name', 'Last Name', 'Last Psych Date', 'Days Since Psych', 'Psych Sessions', 'Status', 'Not Viable Reason'].join(','),
-        ...exportData.map(row => [
-          row.firstName,
-          row.lastName,
-          row.lastPsychDate,
-          row.daysSincePsych,
-          row.psychSessions,
-          row.status,
-          row.notViableReason
-        ].join(','))
-      ].join('\n');
-      
-      // Download CSV
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `psych-to-aba-conversion-${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-      
-      setExportStatus({
-        type: 'success',
-        message: `Exported ${exportData.length} conversion leads to CSV. To sync to HubSpot, enable CRM object management at: Settings > Product Updates > New to You`
-      });
-    } catch (error) {
-      setExportStatus({
-        type: 'error',
-        message: `Export failed: ${error.message}`
-      });
-    } finally {
-      setIsExporting(false);
+      const resp = await fetch(SHEET_URL);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const text = await resp.text();
+      const lines = text.trim().split('\n');
+      if (lines.length < 2) throw new Error('Sheet has no data rows.');
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+      const nameIdx = headers.findIndex(h => h.includes('client') || h === 'name');
+      const reasonIdx = headers.findIndex(h => h.includes('reason') || h.includes('viable') || h.includes('status'));
+      if (nameIdx === -1) throw new Error('No "ClientName" column found.');
+      const updates = {};
+      let count = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const vals = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const name = vals[nameIdx];
+        const reason = reasonIdx >= 0 ? vals[reasonIdx] : '';
+        if (name && reason) { updates[name] = reason; count++; }
+      }
+      setNotViableReasons(prev => ({ ...prev, ...updates }));
+      setSheetStatus({ type: 'success', message: `✓ Synced ${count} reason${count !== 1 ? 's' : ''} from Google Sheet.` });
+    } catch (err) {
+      setSheetStatus({ type: 'error', message: `✗ ${err.message}` });
     }
   };
 
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+  // ── Auto-load billing data from Google Sheet ──────────────────
+  const loadBillingSheet = async () => {
+    setLoadStatus({ type: 'loading', message: 'Loading billing data…' });
+    try {
+      const resp = await fetch(BILLING_SHEET_URL);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} — make sure the sheet is shared as "Anyone with the link can view."`);
+      const text = await resp.text();
+      // Check if we got an HTML redirect (auth wall) instead of CSV
+      if (text.trim().startsWith('<!')) throw new Error('Sheet returned an HTML page — it needs to be shared as "Anyone with the link can view."');
+      const parsed = parseCSV(text);
+      if (parsed.length === 0) throw new Error('No valid billing rows found. Check that the sheet tab matches the expected column headers.');
+      setRawData(parsed);
+      setLoadStatus({ type: 'success', message: `Loaded ${parsed.length.toLocaleString()} sessions.` });
+    } catch (err) {
+      setLoadStatus({ type: 'error', message: err.message });
+    }
+  };
 
+  // Auto-load on mount
+  React.useEffect(() => { loadBillingSheet(); }, []);
+
+  // Auto-sync not-viable reasons whenever billing data loads
+  React.useEffect(() => {
+    if (rawData.length > 0) syncGoogleSheet();
+  }, [rawData]);
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target.result;
-      const parsed = parseCSVData(text);
-      if (parsed.length > 0) {
-        setRawData(parsed);
-        setShowInstructions(false);
-      } else {
-        alert('No valid data found. Please check your CSV file.');
-      }
+    reader.onload = (ev) => {
+      const parsed = parseCSV(ev.target.result);
+      if (parsed.length > 0) { setRawData(parsed); setShowUpload(false); }
+      else alert('No valid data found. Check your CSV.');
     };
     reader.readAsText(file);
   };
 
-  const parseCSVData = (csvText) => {
-    const lines = csvText.trim().split('\n');
+  const parseCSV = (text) => {
+    const lines = text.trim().split('\n');
     if (lines.length < 2) return [];
-    
     const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const idx = (name) => headers.findIndex(h => h === name);
+    const dateIdx = idx('DateOfService'), agreedIdx = idx('ClientChargesAgreedTotal'),
+      unitsIdx = idx('UnitsOfService'), hoursIdx = idx('TimeWorkedInHours'),
+      fnIdx = idx('ClientFirstName'), lnIdx = idx('ClientLastName'), codeIdx = idx('ProcedureCode');
     const data = [];
-    
-    const dateIdx = headers.findIndex(h => h === 'DateOfService');
-    const agreedIdx = headers.findIndex(h => h === 'ClientChargesAgreedTotal');
-    const unitsIdx = headers.findIndex(h => h === 'UnitsOfService');
-    const hoursIdx = headers.findIndex(h => h === 'TimeWorkedInHours');
-    const clientFirstIdx = headers.findIndex(h => h === 'ClientFirstName');
-    const clientLastIdx = headers.findIndex(h => h === 'ClientLastName');
-    const procedureCodeIdx = headers.findIndex(h => h === 'ProcedureCode');
-    
     for (let i = 1; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line.trim()) continue;
-      
-      const values = [];
-      let current = '';
-      let inQuotes = false;
-      
-      for (let char of line) {
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          values.push(current);
-          current = '';
-        } else {
-          current += char;
-        }
+      const line = lines[i]; if (!line.trim()) continue;
+      const vals = []; let cur = '', inQ = false;
+      for (const ch of line) {
+        if (ch === '"') inQ = !inQ;
+        else if (ch === ',' && !inQ) { vals.push(cur); cur = ''; }
+        else cur += ch;
       }
-      values.push(current);
-      
-      const dateValue = values[dateIdx]?.trim().replace(/^"|"$/g, '');
-      if (!dateValue || dateValue.length < 8 || dateValue === 'DateOfService' || dateValue.includes('#')) continue;
-      
-      const firstName = values[clientFirstIdx]?.trim().replace(/^"|"$/g, '') || '';
-      const lastName = values[clientLastIdx]?.trim().replace(/^"|"$/g, '') || '';
-      const procedureCode = values[procedureCodeIdx]?.trim().replace(/^"|"$/g, '') || '';
-      
-      const row = {
-        DateOfService: dateValue,
-        ClientChargesAgreedTotal: parseFloat(values[agreedIdx]?.replace(/^"|"$/g, '') || 0),
-        UnitsOfService: parseFloat(values[unitsIdx]?.replace(/^"|"$/g, '') || 0),
-        TimeWorkedInHours: parseFloat(values[hoursIdx]?.replace(/^"|"$/g, '') || 0),
-        ClientName: `${firstName} ${lastName}`.trim(),
-        ProcedureCode: procedureCode
-      };
-      
-      data.push(row);
+      vals.push(cur);
+      const dv = vals[dateIdx]?.trim().replace(/^"|"$/g, '');
+      if (!dv || dv.length < 8 || dv === 'DateOfService' || dv.includes('#')) continue;
+      const fn = vals[fnIdx]?.trim().replace(/^"|"$/g, '') || '';
+      const ln = vals[lnIdx]?.trim().replace(/^"|"$/g, '') || '';
+      data.push({
+        DateOfService: dv,
+        ClientChargesAgreedTotal: parseFloat(vals[agreedIdx]?.replace(/^"|"$/g, '') || 0),
+        UnitsOfService: parseFloat(vals[unitsIdx]?.replace(/^"|"$/g, '') || 0),
+        TimeWorkedInHours: parseFloat(vals[hoursIdx]?.replace(/^"|"$/g, '') || 0),
+        ClientName: `${fn} ${ln}`.trim(),
+        ProcedureCode: vals[codeIdx]?.trim().replace(/^"|"$/g, '') || ''
+      });
     }
-    
     return data;
   };
 
+  const parseDate = (dateStr) => {
+    if (!dateStr) return null;
+    if (dateStr.includes('/')) {
+      const p = dateStr.split(' ')[0].split('/');
+      if (p.length === 3) {
+        let y = parseInt(p[2]); if (y < 100) y += 2000;
+        return new Date(y, parseInt(p[0]) - 1, parseInt(p[1]));
+      }
+    } else if (dateStr.includes('-')) {
+      return new Date(dateStr.split(' ')[0]);
+    }
+    return new Date(dateStr);
+  };
+
+  const getWeekKey = (date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const mon = new Date(d); mon.setDate(diff);
+    return mon.toISOString().split('T')[0];
+  };
+
   const weeklyData = useMemo(() => {
-    if (rawData.length === 0) return [];
-    
+    if (!rawData.length) return [];
     const grouped = {};
-    
     rawData.forEach(entry => {
-      let date;
-      const dateStr = entry.DateOfService;
-      
-      // Handle various date formats
-      if (dateStr.includes('/')) {
-        // Format: MM/DD/YYYY or MM/DD/YYYY HH:MM:SS
-        const datePart = dateStr.split(' ')[0]; // Get just the date part before any time
-        const parts = datePart.split('/');
-        if (parts.length === 3) {
-          const month = parseInt(parts[0]) - 1;
-          const day = parseInt(parts[1]);
-          let year = parseInt(parts[2]);
-          
-          // Fix 2-digit years
-          if (year < 100) {
-            year += 2000;
-          }
-          
-          date = new Date(year, month, day);
-        }
-      } else if (dateStr.includes('-')) {
-        // Format: YYYY-MM-DD or similar
-        const datePart = dateStr.split(' ')[0];
-        date = new Date(datePart);
-      } else {
-        date = new Date(dateStr);
-      }
-      
-      if (isNaN(date.getTime())) return;
-      
-      const dayOfWeek = date.getDay();
-      const diff = date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-      const monday = new Date(date);
-      monday.setDate(diff);
-      const weekKey = monday.toISOString().split('T')[0];
-      
-      if (!grouped[weekKey]) {
-        grouped[weekKey] = {
-          week: weekKey,
-          agreedRevenue: 0,
-          totalUnits: 0,
-          totalHours: 0,
-          sessionCount: 0,
-          uniqueClients: new Set()
-        };
-      }
-      
-      const agreedCharges = entry.ClientChargesAgreedTotal || 0;
-      const hours = entry.TimeWorkedInHours || 0;
-      
-      grouped[weekKey].agreedRevenue += agreedCharges;
-      grouped[weekKey].totalUnits += entry.UnitsOfService || 0;
-      
-      // Only count hours if there are agreed charges
-      if (agreedCharges > 0) {
-        grouped[weekKey].totalHours += hours;
-      }
-      
-      grouped[weekKey].sessionCount += 1;
-      
-      // Only count as unique client if procedure code is 97153
-      if (entry.ClientName && entry.ProcedureCode === '97153') {
-        grouped[weekKey].uniqueClients.add(entry.ClientName);
-      }
+      const date = parseDate(entry.DateOfService);
+      if (!date || isNaN(date.getTime())) return;
+      const wk = getWeekKey(date);
+      if (!grouped[wk]) grouped[wk] = { week: wk, agreedRevenue: 0, totalUnits: 0, totalHours: 0, sessionCount: 0, uniqueClients: new Set() };
+      const charges = entry.ClientChargesAgreedTotal || 0;
+      grouped[wk].agreedRevenue += charges;
+      grouped[wk].totalUnits += entry.UnitsOfService || 0;
+      if (charges > 0) grouped[wk].totalHours += entry.TimeWorkedInHours || 0;
+      grouped[wk].sessionCount++;
+      if (entry.ClientName && entry.ProcedureCode === '97153') grouped[wk].uniqueClients.add(entry.ClientName);
     });
-    
     return Object.values(grouped)
-      .map(week => ({
-        ...week,
-        avgSessionLength: week.totalHours / week.sessionCount,
-        avgRevenuePerHour: week.agreedRevenue / week.totalHours,
-        clientCount: week.uniqueClients.size,
-        uniqueClients: undefined // Remove Set from data
-      }))
+      .map(w => ({ ...w, clientCount: w.uniqueClients.size, avgRevenuePerHour: w.totalHours > 0 ? w.agreedRevenue / w.totalHours : 0, avgSessionLength: w.sessionCount > 0 ? w.totalHours / w.sessionCount : 0, uniqueClients: undefined }))
       .sort((a, b) => new Date(a.week) - new Date(b.week))
-      .map((week, idx, arr) => {
-        if (idx > 0) {
-          const prevWeek = arr[idx - 1];
-          week.revenueChange = prevWeek.agreedRevenue > 0 
-            ? ((week.agreedRevenue - prevWeek.agreedRevenue) / prevWeek.agreedRevenue * 100).toFixed(1) 
-            : 0;
-          week.hoursChange = prevWeek.totalHours > 0
-            ? ((week.totalHours - prevWeek.totalHours) / prevWeek.totalHours * 100).toFixed(1)
-            : 0;
-        } else {
-          week.revenueChange = 0;
-          week.hoursChange = 0;
-        }
-        return week;
+      .map((w, i, arr) => {
+        const p = arr[i - 1];
+        return { ...w, revenueChange: p?.agreedRevenue > 0 ? +((w.agreedRevenue - p.agreedRevenue) / p.agreedRevenue * 100).toFixed(1) : 0, hoursChange: p?.totalHours > 0 ? +((w.totalHours - p.totalHours) / p.totalHours * 100).toFixed(1) : 0 };
       });
   }, [rawData]);
 
-  // Client analysis for latest week - ONLY 97153
-  const latestWeekClients = useMemo(() => {
-    if (rawData.length === 0 || weeklyData.length === 0) return [];
-    
-    const latestWeekKey = weeklyData[weeklyData.length - 1].week;
-    
-    console.log('Latest week key:', latestWeekKey);
-    console.log('Looking for 97153 clients in week of:', latestWeekKey);
-    
-    const clients = {};
-    
+  // ── Client hours heatmap data ──────────────────────────────────
+  const heatmapData = useMemo(() => {
+    if (!rawData.length || !weeklyData.length) return { clients: [], weeks: [] };
+    // Only last 12 weeks
+    const recentWeeks = weeklyData.slice(-12).map(w => w.week);
+    const clientWeekHours = {};
     rawData.forEach(entry => {
-      // Skip non-97153 codes
       if (entry.ProcedureCode !== '97153') return;
-      
-      let date;
-      const dateStr = entry.DateOfService;
-      
-      if (dateStr.includes('/')) {
-        const datePart = dateStr.split(' ')[0];
-        const parts = datePart.split('/');
-        if (parts.length === 3) {
-          const month = parseInt(parts[0]) - 1;
-          const day = parseInt(parts[1]);
-          let year = parseInt(parts[2]);
-          if (year < 100) year += 2000;
-          date = new Date(year, month, day);
-        }
-      } else if (dateStr.includes('-')) {
-        const datePart = dateStr.split(' ')[0];
-        date = new Date(datePart);
-      } else {
-        date = new Date(dateStr);
-      }
-      
-      if (isNaN(date.getTime())) return;
-      
-      const dayOfWeek = date.getDay();
-      const diff = date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-      const monday = new Date(date);
-      monday.setDate(diff);
-      
-      // Compare week start dates
-      if (monday.toISOString().split('T')[0] !== latestWeekKey) return;
-      
+      const date = parseDate(entry.DateOfService);
+      if (!date || isNaN(date.getTime())) return;
+      const wk = getWeekKey(date);
+      if (!recentWeeks.includes(wk)) return;
       const name = entry.ClientName;
       if (!name || name === ' ') return;
-      
-      const agreedCharges = entry.ClientChargesAgreedTotal || 0;
-      const hours = entry.TimeWorkedInHours || 0;
-      
-      if (!clients[name]) {
-        clients[name] = {
-          name,
-          totalRevenue: 0,
-          totalHours: 0,
-          sessionCount: 0
-        };
-      }
-      
-      clients[name].totalRevenue += agreedCharges;
-      if (agreedCharges > 0) {
-        clients[name].totalHours += hours;
-      }
-      clients[name].sessionCount += 1;
+      const charges = entry.ClientChargesAgreedTotal || 0;
+      if (!clientWeekHours[name]) clientWeekHours[name] = {};
+      if (!clientWeekHours[name][wk]) clientWeekHours[name][wk] = 0;
+      if (charges > 0) clientWeekHours[name][wk] += entry.TimeWorkedInHours || 0;
     });
-    
-    console.log('Latest week 97153 clients found:', Object.keys(clients).length);
-    
-    return Object.values(clients)
-      .sort((a, b) => b.totalRevenue - a.totalRevenue);
+    // Sort clients by total hours desc
+    const clients = Object.entries(clientWeekHours)
+      .map(([name, weeks]) => ({ name, total: Object.values(weeks).reduce((s, v) => s + v, 0), weeks }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 25);
+    const maxHours = Math.max(...clients.flatMap(c => Object.values(c.weeks)));
+    return { clients, weeks: recentWeeks, maxHours };
   }, [rawData, weeklyData]);
 
-  // Client week-over-week analysis - ONLY 97153
+  // ── WoW changes ──────────────────────────────────────────────
   const clientWoWChanges = useMemo(() => {
-    if (rawData.length === 0 || weeklyData.length < 2) return [];
-    
-    const latestWeekKey = weeklyData[weeklyData.length - 1].week;
-    const previousWeekKey = weeklyData[weeklyData.length - 2].week;
-    
-    console.log('Comparing weeks for 97153:', previousWeekKey, 'vs', latestWeekKey);
-    
-    const parseAndGroupByWeek = (targetWeekKey) => {
+    if (weeklyData.length < 2) return [];
+    const curr = weeklyData[weeklyData.length - 1].week;
+    const prev = weeklyData[weeklyData.length - 2].week;
+    const byWeek = (wk) => {
       const clients = {};
-      
       rawData.forEach(entry => {
-        // Skip non-97153 codes
         if (entry.ProcedureCode !== '97153') return;
-        
-        let date;
-        const dateStr = entry.DateOfService;
-        
-        if (dateStr.includes('/')) {
-          const datePart = dateStr.split(' ')[0];
-          const parts = datePart.split('/');
-          if (parts.length === 3) {
-            const month = parseInt(parts[0]) - 1;
-            const day = parseInt(parts[1]);
-            let year = parseInt(parts[2]);
-            if (year < 100) year += 2000;
-            date = new Date(year, month, day);
-          }
-        } else if (dateStr.includes('-')) {
-          const datePart = dateStr.split(' ')[0];
-          date = new Date(datePart);
-        } else {
-          date = new Date(dateStr);
-        }
-        
-        if (isNaN(date.getTime())) return;
-        
-        const dayOfWeek = date.getDay();
-        const diff = date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-        const monday = new Date(date);
-        monday.setDate(diff);
-        const weekKey = monday.toISOString().split('T')[0];
-        
-        if (weekKey !== targetWeekKey) return;
-        
-        const name = entry.ClientName;
-        if (!name || name === ' ') return;
-        
-        const agreedCharges = entry.ClientChargesAgreedTotal || 0;
-        const hours = entry.TimeWorkedInHours || 0;
-        
-        if (!clients[name]) {
-          clients[name] = { hours: 0 };
-        }
-        
-        if (agreedCharges > 0) {
-          clients[name].hours += hours;
-        }
+        const date = parseDate(entry.DateOfService);
+        if (!date || isNaN(date.getTime())) return;
+        if (getWeekKey(date) !== wk) return;
+        const name = entry.ClientName; if (!name || name === ' ') return;
+        const charges = entry.ClientChargesAgreedTotal || 0;
+        if (!clients[name]) clients[name] = 0;
+        if (charges > 0) clients[name] += entry.TimeWorkedInHours || 0;
       });
-      
       return clients;
     };
-    
-    const latestWeekClients = parseAndGroupByWeek(latestWeekKey);
-    const previousWeekClients = parseAndGroupByWeek(previousWeekKey);
-    
-    console.log('Latest week 97153 client count:', Object.keys(latestWeekClients).length);
-    console.log('Previous week 97153 client count:', Object.keys(previousWeekClients).length);
-    
-    const allClientNames = new Set([
-      ...Object.keys(latestWeekClients),
-      ...Object.keys(previousWeekClients)
-    ]);
-    
-    const changes = [];
-    allClientNames.forEach(name => {
-      const latestHours = latestWeekClients[name]?.hours || 0;
-      const previousHours = previousWeekClients[name]?.hours || 0;
-      
-      if (latestHours === 0 && previousHours === 0) return;
-      
-      const change = latestHours - previousHours;
-      const percentChange = previousHours > 0 
-        ? ((change / previousHours) * 100)
-        : (latestHours > 0 ? 100 : 0);
-      
-      changes.push({
-        name,
-        latestHours,
-        previousHours,
-        change,
-        percentChange,
-        isNew: previousHours === 0 && latestHours > 0,
-        isGone: previousHours > 0 && latestHours === 0
-      });
-    });
-    
-    const filtered = changes
-      .filter(c => Math.abs(c.percentChange) >= 25 || c.isNew || c.isGone)
-      .sort((a, b) => Math.abs(b.percentChange) - Math.abs(a.percentChange));
-    
-    console.log('97153 client changes found:', filtered.length);
-    
-    return filtered;
+    const c = byWeek(curr), p = byWeek(prev);
+    return [...new Set([...Object.keys(c), ...Object.keys(p)])]
+      .map(name => {
+        const ch = c[name] || 0, ph = p[name] || 0;
+        const pct = ph > 0 ? (ch - ph) / ph * 100 : (ch > 0 ? 100 : 0);
+        return { name, currH: ch, prevH: ph, change: ch - ph, pct, isNew: ph === 0 && ch > 0, isGone: ph > 0 && ch === 0 };
+      })
+      .filter(x => x.currH > 0 || x.prevH > 0)
+      .filter(x => Math.abs(x.pct) >= 25 || x.isNew || x.isGone)
+      .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
   }, [rawData, weeklyData]);
 
-  const latestWeek = weeklyData[weeklyData.length - 1] || {};
-  const previousWeek = weeklyData[weeklyData.length - 2] || {};
+  // ── Conversion funnel ─────────────────────────────────────────
+  const conversionFunnel = useMemo(() => {
+    if (!rawData.length) return null;
+    const PSYCH = ['90791', '96130', '96131', '96136', '96137'];
+    const ASSESS = ['97151'];
+    const THERAPY = ['97153'];
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(value);
-  };
-
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
-  // Comprehensive Psych Dashboard Analytics
-  const psychDashboardData = useMemo(() => {
-    if (rawData.length === 0) return null;
-    
-    const psychCodes = ['90791', '96130', '96131', '96136', '96137'];
-    const abaCodes = ['97155', '97153'];
-    const allCodes = [...psychCodes, ...abaCodes];
-    
-    // Track complete client journey
-    const clientJourneys = {};
-    
+    const clients = {};
     rawData.forEach(entry => {
-      const name = entry.ClientName;
-      if (!name || name === ' ') return;
-      
+      const name = entry.ClientName; if (!name || name === ' ') return;
+      if (!clients[name]) clients[name] = { name, psychDates: [], assessDates: [], therapyDates: [] };
+      const date = parseDate(entry.DateOfService);
+      if (!date || isNaN(date.getTime())) return;
       const code = entry.ProcedureCode;
-      if (!allCodes.includes(code)) return;
-      
-      // Parse date
-      let date;
-      const dateStr = entry.DateOfService;
-      if (dateStr.includes('/')) {
-        const datePart = dateStr.split(' ')[0];
-        const parts = datePart.split('/');
-        if (parts.length === 3) {
-          const month = parseInt(parts[0]) - 1;
-          const day = parseInt(parts[1]);
-          let year = parseInt(parts[2]);
-          if (year < 100) year += 2000;
-          date = new Date(year, month, day);
-        }
-      } else if (dateStr.includes('-')) {
-        const datePart = dateStr.split(' ')[0];
-        date = new Date(datePart);
-      } else {
-        date = new Date(dateStr);
-      }
-      
-      if (isNaN(date.getTime())) return;
-      
-      if (!clientJourneys[name]) {
-        clientJourneys[name] = {
-          name,
-          firstPsychDate: null,
-          lastPsychDate: null,
-          firstABADate: null,
-          lastABADate: null,
-          psychSessions: 0,
-          abaSessions: 0,
-          psychCodes: [],
-          status: 'unknown',
-          daysSinceFirstPsych: 0,
-          daysSinceLastPsych: 0,
-          daysToConversion: null,
-          totalRevenue: 0,
-          totalHours: 0
-        };
-      }
-      
-      const journey = clientJourneys[name];
-      
-      // Track psych assessments
-      if (psychCodes.includes(code)) {
-        journey.psychSessions += 1;
-        if (!journey.psychCodes.includes(code)) {
-          journey.psychCodes.push(code);
-        }
-        if (!journey.firstPsychDate || date < journey.firstPsychDate) {
-          journey.firstPsychDate = date;
-        }
-        if (!journey.lastPsychDate || date > journey.lastPsychDate) {
-          journey.lastPsychDate = date;
-        }
-      }
-      
-      // Track ABA services
-      if (abaCodes.includes(code)) {
-        journey.abaSessions += 1;
-        if (!journey.firstABADate || date < journey.firstABADate) {
-          journey.firstABADate = date;
-        }
-        if (!journey.lastABADate || date > journey.lastABADate) {
-          journey.lastABADate = date;
-        }
-      }
-      
-      // Track revenue and hours
-      journey.totalRevenue += entry.ClientChargesAgreedTotal || 0;
-      journey.totalHours += entry.TimeWorkedInHours || 0;
+      if (PSYCH.includes(code)) clients[name].psychDates.push(date);
+      if (ASSESS.includes(code)) clients[name].assessDates.push(date);
+      if (THERAPY.includes(code)) clients[name].therapyDates.push(date);
     });
-    
-    // Calculate metrics and categorize clients
+
     const now = new Date();
-    const activeLeads = [];
-    const converted = [];
-    const atRisk = [];
-    const notViable = [];
-    
-    Object.values(clientJourneys).forEach(journey => {
-      if (!journey.firstPsychDate) return;
-      
-      journey.daysSinceFirstPsych = Math.floor((now - journey.firstPsychDate) / (1000 * 60 * 60 * 24));
-      journey.daysSinceLastPsych = Math.floor((now - journey.lastPsychDate) / (1000 * 60 * 60 * 24));
-      
-      // Get notes and not viable reason
-      journey.notes = clientNotes[journey.name] || '';
-      journey.notViableReason = notViableReasons[journey.name] || null;
-      
-      if (journey.firstABADate) {
-        // Converted
-        journey.daysToConversion = Math.floor((journey.firstABADate - journey.lastPsychDate) / (1000 * 60 * 60 * 24));
-        journey.status = 'converted';
-        converted.push(journey);
-      } else if (journey.notViableReason) {
-        // Marked as not viable
-        journey.status = 'not-viable';
-        notViable.push(journey);
-      } else if (journey.daysSinceLastPsych <= 75) {
-        // Active in pipeline
-        if (journey.daysSinceLastPsych > 45) {
-          journey.status = 'at-risk';
-          atRisk.push(journey);
-        } else {
-          journey.status = 'active';
-          activeLeads.push(journey);
-        }
-      } else {
-        // Old lead - consider stale
-        journey.status = 'stale';
-      }
-    });
-    
-    // Sort arrays
-    activeLeads.sort((a, b) => a.daysSinceLastPsych - b.daysSinceLastPsych);
-    atRisk.sort((a, b) => b.daysSinceLastPsych - a.daysSinceLastPsych);
-    converted.sort((a, b) => b.firstABADate - a.firstABADate);
-    notViable.sort((a, b) => a.daysSinceLastPsych - b.daysSinceLastPsych);
-    
-    // Calculate conversion metrics
-    const totalWithPsych = activeLeads.length + atRisk.length + converted.length + notViable.length;
-    const conversionRate = totalWithPsych > 0 ? ((converted.length / totalWithPsych) * 100).toFixed(1) : 0;
-    
-    // Calculate average days to conversion
-    const validConversions = converted.filter(c => c.daysToConversion >= 0);
-    const avgDaysToConversion = validConversions.length > 0
-      ? (validConversions.reduce((sum, c) => sum + c.daysToConversion, 0) / validConversions.length).toFixed(1)
-      : 0;
-    
-    // Time-based cohort analysis
-    const cohorts = {
-      '0-14': { active: 0, converted: 0, atRisk: 0, notViable: 0 },
-      '15-30': { active: 0, converted: 0, atRisk: 0, notViable: 0 },
-      '31-45': { active: 0, converted: 0, atRisk: 0, notViable: 0 },
-      '46-60': { active: 0, converted: 0, atRisk: 0, notViable: 0 },
-      '61-75': { active: 0, converted: 0, atRisk: 0, notViable: 0 }
-    };
-    
-    [...activeLeads, ...atRisk, ...notViable].forEach(journey => {
-      const days = journey.daysSinceLastPsych;
-      let cohort;
-      if (days <= 14) cohort = '0-14';
-      else if (days <= 30) cohort = '15-30';
-      else if (days <= 45) cohort = '31-45';
-      else if (days <= 60) cohort = '46-60';
-      else cohort = '61-75';
-      
-      if (journey.status === 'active') cohorts[cohort].active++;
-      else if (journey.status === 'at-risk') cohorts[cohort].atRisk++;
-      else if (journey.status === 'not-viable') cohorts[cohort].notViable++;
-    });
-    
-    return {
-      activeLeads,
-      atRisk,
-      converted: converted.slice(0, 20),
-      notViable,
-      totalWithPsych,
-      conversionRate,
-      avgDaysToConversion,
-      cohorts,
-      allClients: Object.values(clientJourneys)
-    };
-  }, [rawData, notViableReasons, clientNotes]);
+    const psychOnly = [], assessOnly = [], therapy = [], psychToAssessConverted = [], assessToTherapyConverted = [];
+    let psychCount = 0, assessCount = 0, therapyCount = 0;
 
-  const StatCard = ({ title, value, change, icon: Icon, format = 'currency' }) => {
-    const isPositive = parseFloat(change) > 0;
-    let displayValue = value;
-    
-    if (format === 'currency') {
-      displayValue = formatCurrency(value);
-    } else if (format === 'hours') {
-      displayValue = `${value.toFixed(1)}h`;
-    }
-    
-    return (
-      <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-gray-600">{title}</span>
-          <Icon className="w-5 h-5 text-gray-400" />
-        </div>
-        <div className="text-2xl font-bold text-gray-900 mb-1">{displayValue}</div>
-        <div className="flex items-center text-sm">
-          {isPositive ? (
-            <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-          ) : (
-            <TrendingDown className="w-4 h-4 text-red-500 mr-1" />
-          )}
-          <span className={isPositive ? 'text-green-600' : 'text-red-600'}>
-            {Math.abs(change)}%
-          </span>
-          <span className="text-gray-500 ml-1">vs last week</span>
-        </div>
-      </div>
-    );
-  };
+    Object.values(clients).forEach(c => {
+      const hasPsych = c.psychDates.length > 0;
+      const hasAssess = c.assessDates.length > 0;
+      const hasTherapy = c.therapyDates.length > 0;
 
-  // Psych assessment to ABA conversion tracking
-  const psychToABAConversion = useMemo(() => {
-    if (rawData.length === 0) return { needsConversion: [], converted: [], conversionRate: 0 };
-    
-    const psychCodes = ['90791', '96130', '96131', '96136', '96137'];
-    const abaCodes = ['97155', '97153'];
-    
-    // Group by client to see their service history
-    const clientHistory = {};
-    
-    rawData.forEach(entry => {
-      const name = entry.ClientName;
-      if (!name || name === ' ') return;
-      
-      if (!clientHistory[name]) {
-        clientHistory[name] = {
-          name,
-          hadPsych: false,
-          lastPsychDate: null,
-          hasABA: false,
-          firstABADate: null,
-          psychSessions: 0,
-          abaSessions: 0
-        };
+      if (hasPsych) psychCount++;
+      if (hasAssess) assessCount++;
+      if (hasTherapy) therapyCount++;
+
+      const lastPsych = hasPsych ? new Date(Math.max(...c.psychDates)) : null;
+      const lastAssess = hasAssess ? new Date(Math.max(...c.assessDates)) : null;
+      const firstTherapy = hasTherapy ? new Date(Math.min(...c.therapyDates)) : null;
+      const daysSincePsych = lastPsych ? Math.floor((now - lastPsych) / 86400000) : null;
+      const daysSinceAssess = lastAssess ? Math.floor((now - lastAssess) / 86400000) : null;
+
+      if (hasPsych && !hasAssess && !hasTherapy && daysSincePsych <= 90) {
+        psychOnly.push({ ...c, lastPsych, daysSincePsych, reason: notViableReasons[c.name] || null });
       }
-      
-      const code = entry.ProcedureCode;
-      
-      // Parse date
-      let date;
-      const dateStr = entry.DateOfService;
-      if (dateStr.includes('/')) {
-        const datePart = dateStr.split(' ')[0];
-        const parts = datePart.split('/');
-        if (parts.length === 3) {
-          const month = parseInt(parts[0]) - 1;
-          const day = parseInt(parts[1]);
-          let year = parseInt(parts[2]);
-          if (year < 100) year += 2000;
-          date = new Date(year, month, day);
-        }
-      } else if (dateStr.includes('-')) {
-        const datePart = dateStr.split(' ')[0];
-        date = new Date(datePart);
-      } else {
-        date = new Date(dateStr);
+      if (hasAssess && !hasTherapy && daysSinceAssess !== null && daysSinceAssess <= 90) {
+        assessOnly.push({ ...c, lastAssess, daysSinceAssess, daysSincePsych, reason: notViableReasons[c.name] || null });
       }
-      
-      if (isNaN(date.getTime())) return;
-      
-      // Track psych assessments
-      if (psychCodes.includes(code)) {
-        clientHistory[name].hadPsych = true;
-        clientHistory[name].psychSessions += 1;
-        if (!clientHistory[name].lastPsychDate || date > clientHistory[name].lastPsychDate) {
-          clientHistory[name].lastPsychDate = date;
-        }
+      if (hasPsych && hasAssess) {
+        const daysPsychToAssess = Math.floor((new Date(Math.min(...c.assessDates)) - lastPsych) / 86400000);
+        psychToAssessConverted.push({ ...c, daysPsychToAssess: Math.abs(daysPsychToAssess) });
       }
-      
-      // Track ABA services
-      if (abaCodes.includes(code)) {
-        clientHistory[name].hasABA = true;
-        clientHistory[name].abaSessions += 1;
-        if (!clientHistory[name].firstABADate || date < clientHistory[name].firstABADate) {
-          clientHistory[name].firstABADate = date;
-        }
+      if (hasAssess && hasTherapy) {
+        const daysAssessToTherapy = Math.floor((firstTherapy - new Date(Math.min(...c.assessDates))) / 86400000);
+        assessToTherapyConverted.push({ ...c, daysAssessToTherapy: Math.abs(daysAssessToTherapy), firstTherapy });
       }
     });
-    
-    // Find clients who had psych but no ABA yet (within last 75 days)
-    const needsConversion = [];
-    const converted = [];
-    
-    Object.values(clientHistory).forEach(client => {
-      if (client.hadPsych && !client.hasABA) {
-        const daysSincePsych = Math.floor((new Date() - client.lastPsychDate) / (1000 * 60 * 60 * 24));
-        
-        // Only include if within 75 days for real-time action
-        if (daysSincePsych <= 75) {
-          needsConversion.push({
-            ...client,
-            daysSincePsych,
-            notViableReason: notViableReasons[client.name] || null
-          });
-        }
-      } else if (client.hadPsych && client.hasABA) {
-        const conversionDays = Math.floor((client.firstABADate - client.lastPsychDate) / (1000 * 60 * 60 * 24));
-        converted.push({
-          ...client,
-          conversionDays
-        });
-      }
-    });
-    
+
+    const totalPsych = psychOnly.length + psychToAssessConverted.length;
+    const totalAssess = assessOnly.length + assessToTherapyConverted.length;
+    const psychToAssessRate = totalPsych > 0 ? (psychToAssessConverted.length / totalPsych * 100).toFixed(0) : 0;
+    const assessToTherapyRate = totalAssess > 0 ? (assessToTherapyConverted.length / totalAssess * 100).toFixed(0) : 0;
+    const avgDaysPsychToAssess = psychToAssessConverted.length > 0 ? Math.round(psychToAssessConverted.reduce((s, c) => s + c.daysPsychToAssess, 0) / psychToAssessConverted.length) : 0;
+    const avgDaysAssessToTherapy = assessToTherapyConverted.length > 0 ? Math.round(assessToTherapyConverted.reduce((s, c) => s + c.daysAssessToTherapy, 0) / assessToTherapyConverted.length) : 0;
+
     return {
-      needsConversion: needsConversion.sort((a, b) => a.daysSincePsych - b.daysSincePsych),
-      converted: converted.sort((a, b) => b.firstABADate - a.firstABADate).slice(0, 10),
-      conversionRate: clientHistory ? (converted.length / (converted.length + needsConversion.length) * 100).toFixed(1) : 0
+      stages: {
+        psych: { count: psychCount, label: 'Psych Assessment', codes: '90791, 96130-96137', clients: psychOnly.sort((a, b) => a.daysSincePsych - b.daysSincePsych) },
+        assess: { count: assessCount, label: 'ABA Assessment', codes: '97151', clients: assessOnly.sort((a, b) => a.daysSinceAssess - b.daysSinceAssess) },
+        therapy: { count: therapyCount, label: 'ABA Therapy', codes: '97153', clients: [] },
+      },
+      needsAssess: { count: psychOnly.length, clients: psychOnly.sort((a, b) => a.daysSincePsych - b.daysSincePsych) },
+      needsTherapy: { count: assessOnly.length, clients: assessOnly.sort((a, b) => a.daysSinceAssess - b.daysSinceAssess) },
+      psychToAssessRate, assessToTherapyRate,
+      avgDaysPsychToAssess, avgDaysAssessToTherapy,
+      psychToAssessConverted: psychToAssessConverted.sort((a, b) => a.daysPsychToAssess - b.daysPsychToAssess).slice(0, 10),
+      assessToTherapyConverted: assessToTherapyConverted.sort((a, b) => a.daysAssessToTherapy - b.daysAssessToTherapy).slice(0, 10),
     };
   }, [rawData, notViableReasons]);
 
-  if (showInstructions && rawData.length === 0) {
-    return (
-      <div className="w-full h-full bg-gray-50 p-8 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl w-full border border-gray-200">
-          <div className="flex items-center mb-6">
-            <Download className="w-8 h-8 text-blue-500 mr-3" />
-            <h2 className="text-2xl font-bold text-gray-900">Load Your Weekly Billing Data</h2>
-          </div>
-          
-          <div className="mb-6">
-            <h3 className="font-semibold text-gray-900 mb-3">Option 1: Upload CSV File</h3>
-            <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 bg-blue-50 p-4 rounded-lg">
-              <li>Open your Google Sheet</li>
-              <li><strong>IMPORTANT:</strong> Widen the DateOfService column so you can see actual dates (not ##########)</li>
-              <li>Go to <strong>File → Download → Comma-separated values (.csv)</strong></li>
-              <li>Click the button below and select that CSV file</li>
-            </ol>
-          </div>
+  const latestWeek = weeklyData[weeklyData.length - 1] || {};
+  const prevWeek = weeklyData[weeklyData.length - 2] || {};
+  const fmt$ = v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
+  const fmtDate = d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+  const fmtShort = d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-          <div className="mb-6">
-            <label className="block">
-              <div className="flex items-center justify-center w-full h-32 px-4 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
-                <div className="text-center">
-                  <Upload className="w-12 h-12 text-blue-500 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">
-                    <span className="font-semibold text-blue-600">Click to upload CSV</span> or drag and drop
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">CSV file from Google Sheets</p>
-                </div>
-              </div>
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </label>
-          </div>
+  const exportCSV = () => {
+    setIsExporting(true);
+    const rows = [
+      ['Name', 'Stage', 'Days Since Last Service', 'Not Viable Reason'].join(','),
+      ...(conversionFunnel?.needsAssess?.clients || []).map(c => [c.name, 'Needs ABA Assessment', c.daysSincePsych, c.reason || ''].join(',')),
+      ...(conversionFunnel?.needsTherapy?.clients || []).map(c => [c.name, 'Needs ABA Therapy', c.daysSinceAssess, c.reason || ''].join(','))
+    ];
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `aba-conversion-${new Date().toISOString().split('T')[0]}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    setIsExporting(false);
+  };
 
-          <div className="mb-6 border-t border-gray-200 pt-6">
-            <h3 className="font-semibold text-gray-900 mb-3">Option 2: Auto-Load from URL (for HubSpot embedding)</h3>
-            <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 bg-green-50 p-4 rounded-lg">
-              <li>Upload your CSV to Google Drive or Dropbox</li>
-              <li>Get a direct download link (must end in the CSV file, not a preview page)</li>
-              <li>Add <code className="bg-white px-1 rounded">?csv=YOUR_CSV_URL</code> to the end of this page's URL</li>
-              <li>Example: <code className="bg-white px-1 rounded text-xs">{window.location.origin}?csv=https://your-file-url.csv</code></li>
-            </ol>
-          </div>
+  /* ── Loading / Error / Upload fallback screen ─────────────── */
+  if (rawData.length === 0) return (
+    <div className="upload-screen">
+      <FontLoader />
+      <div className="upload-card">
+        <h2>Billing & Clinical Pipeline</h2>
 
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <p className="text-xs text-gray-600">
-              <strong>Note:</strong> Your data stays private and is only processed in your browser.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-
-
-  return (
-    <div className="w-full h-full bg-gray-50 p-8 overflow-auto">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Weekly Billing & Client Trends</h1>
-            <p className="text-gray-600">
-              {rawData.length} sessions • {weeklyData.length} weeks • {latestWeekClients.length} clients this week
-              {weeklyData.length > 0 && (
-                <span className="ml-2">
-                  ({formatDate(weeklyData[0].week)} - {formatDate(weeklyData[weeklyData.length - 1].week)})
-                </span>
-              )}
-            </p>
-          </div>
-          <button
-            onClick={() => setShowInstructions(true)}
-            className="flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            Load New Data
-          </button>
-        </div>
-
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard
-            title="Agreed Charges"
-            value={latestWeek.agreedRevenue || 0}
-            change={latestWeek.revenueChange || 0}
-            icon={DollarSign}
-          />
-          <StatCard
-            title="Total Hours"
-            value={latestWeek.totalHours || 0}
-            change={latestWeek.hoursChange || 0}
-            icon={Clock}
-            format="hours"
-          />
-          <StatCard
-            title="Active Clients"
-            value={latestWeek.clientCount || 0}
-            change={previousWeek.clientCount > 0 ? (((latestWeek.clientCount - previousWeek.clientCount) / previousWeek.clientCount * 100) || 0).toFixed(1) : 0}
-            icon={Users}
-            format="number"
-          />
-          <StatCard
-            title="Avg Revenue/Hour"
-            value={latestWeek.avgRevenuePerHour || 0}
-            change={previousWeek.avgRevenuePerHour > 0 ? (((latestWeek.avgRevenuePerHour - previousWeek.avgRevenuePerHour) / previousWeek.avgRevenuePerHour * 100) || 0).toFixed(1) : 0}
-            icon={DollarSign}
-          />
-        </div>
-
-        {/* Metric Selector */}
-        <div className="bg-white rounded-lg shadow mb-6 p-4 border border-gray-200">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setSelectedMetric('revenue')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                selectedMetric === 'revenue'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Agreed Charges
-            </button>
-            <button
-              onClick={() => setSelectedMetric('hours')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                selectedMetric === 'hours'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Hours
-            </button>
-            <button
-              onClick={() => setSelectedMetric('clients')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                selectedMetric === 'clients'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Active Clients
-            </button>
-            <button
-              onClick={() => setSelectedMetric('sessions')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                selectedMetric === 'sessions'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Sessions
-            </button>
-          </div>
-        </div>
-
-        {/* Main Chart */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8 border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Weekly Trend</h2>
-          <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={weeklyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis 
-                dataKey="week" 
-                tickFormatter={formatDate}
-                stroke="#6b7280"
-              />
-              <YAxis stroke="#6b7280" />
-              <Tooltip
-                formatter={(value) => {
-                  if (selectedMetric === 'revenue') return formatCurrency(value);
-                  if (selectedMetric === 'hours') return `${value.toFixed(1)}h`;
-                  return value;
-                }}
-                labelFormatter={formatDate}
-              />
-              <Legend />
-              {selectedMetric === 'revenue' && (
-                <Line
-                  type="monotone"
-                  dataKey="agreedRevenue"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  name="Agreed Charges"
-                  dot={{ fill: '#3b82f6', r: 4 }}
-                />
-              )}
-              {selectedMetric === 'hours' && (
-                <Line
-                  type="monotone"
-                  dataKey="totalHours"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  name="Total Hours"
-                  dot={{ fill: '#10b981', r: 4 }}
-                />
-              )}
-              {selectedMetric === 'clients' && (
-                <Line
-                  type="monotone"
-                  dataKey="clientCount"
-                  stroke="#8b5cf6"
-                  strokeWidth={2}
-                  name="Active Clients"
-                  dot={{ fill: '#8b5cf6', r: 4 }}
-                />
-              )}
-              {selectedMetric === 'sessions' && (
-                <Line
-                  type="monotone"
-                  dataKey="sessionCount"
-                  stroke="#f59e0b"
-                  strokeWidth={2}
-                  name="Number of Sessions"
-                  dot={{ fill: '#f59e0b', r: 4 }}
-                />
-              )}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Revenue and Hours Comparison */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8 border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Agreed Charges & Hours</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={weeklyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="week" tickFormatter={formatDate} stroke="#6b7280" />
-              <YAxis yAxisId="left" stroke="#6b7280" />
-              <YAxis yAxisId="right" orientation="right" stroke="#6b7280" />
-              <Tooltip 
-                formatter={(value, name) => {
-                  if (name === 'Agreed Charges') return formatCurrency(value);
-                  return `${value.toFixed(1)}h`;
-                }}
-                labelFormatter={formatDate} 
-              />
-              <Legend />
-              <Bar yAxisId="left" dataKey="agreedRevenue" fill="#3b82f6" name="Agreed Charges" />
-              <Bar yAxisId="right" dataKey="totalHours" fill="#10b981" name="Hours Worked" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Top Clients and Client Changes - ONLY 97153 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Top Clients This Week (97153 only)</h2>
-            <p className="text-sm text-gray-600 mb-4">By agreed charges</p>
-            <div className="space-y-4">
-              {latestWeekClients.slice(0, 10).map((client, idx) => (
-                <div key={idx} className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center">
-                      <span className="font-medium text-gray-900">{client.name}</span>
-                      <span className="ml-2 text-xs text-gray-500">
-                        ({client.sessionCount} sessions, {client.totalHours.toFixed(1)}h)
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full"
-                        style={{ width: `${latestWeekClients.length > 0 ? (client.totalRevenue / latestWeekClients[0].totalRevenue) * 100 : 0}%` }}
-                      />
-                    </div>
-                  </div>
-                  <span className="ml-4 font-semibold text-gray-900">{formatCurrency(client.totalRevenue)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Client Hour Changes - WoW (97153 only)</h2>
-            <p className="text-sm text-gray-600 mb-4">Clients with 25%+ change in billable hours</p>
-            <div className="space-y-3">
-              {clientWoWChanges.length === 0 ? (
-                <p className="text-gray-500 text-sm italic">No significant changes this week</p>
-              ) : (
-                clientWoWChanges.slice(0, 10).map((client, idx) => (
-                  <div key={idx} className="border-l-4 pl-3 py-2" style={{
-                    borderColor: client.isNew ? '#10b981' : client.isGone ? '#ef4444' : client.change > 0 ? '#3b82f6' : '#f59e0b'
-                  }}>
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-900">{client.name}</span>
-                      <div className="flex items-center">
-                        {client.isNew ? (
-                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">NEW</span>
-                        ) : client.isGone ? (
-                          <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">INACTIVE</span>
-                        ) : (
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            client.change > 0 ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
-                          }`}>
-                            {client.change > 0 ? '+' : ''}{client.percentChange.toFixed(0)}%
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      {client.previousHours.toFixed(1)}h → {client.latestHours.toFixed(1)}h
-                      <span className={`ml-2 font-medium ${client.change > 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                        ({client.change > 0 ? '+' : ''}{client.change.toFixed(1)}h)
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Psych to ABA Conversion Tracking */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Psych Assessment → ABA Conversion</h2>
-                <p className="text-sm text-gray-600">Clients who completed psych in last 75 days but haven't started ABA</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-3xl font-bold text-orange-600">{psychToABAConversion.needsConversion?.length || 0}</div>
-                  <div className="text-xs text-gray-500">Need Follow-up</div>
-                </div>
-                <button
-                  onClick={exportToHubSpot}
-                  disabled={isExporting || !psychToABAConversion.needsConversion?.length}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm"
-                >
-                  {isExporting ? 'Exporting...' : 'Export to CSV'}
-                </button>
-              </div>
-            </div>
-            {exportStatus && (
-              <div className={`mb-4 p-3 rounded-lg text-sm ${
-                exportStatus.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-              }`}>
-                {exportStatus.message}
-              </div>
-            )}
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {psychToABAConversion.needsConversion?.length === 0 ? (
-                <p className="text-gray-500 text-sm italic">All psych assessment clients have started ABA!</p>
-              ) : (
-                psychToABAConversion.needsConversion?.map((client, idx) => (
-                  <div key={idx} className={`border-l-4 pl-3 py-2 ${
-                    client.notViableReason ? 'bg-gray-100 border-gray-400' : 'bg-orange-50 border-orange-500'
-                  }`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className={`font-medium ${client.notViableReason ? 'text-gray-500' : 'text-gray-900'}`}>
-                        {client.name}
-                      </span>
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        client.notViableReason ? 'bg-gray-200 text-gray-700' :
-                        client.daysSincePsych > 60 ? 'bg-red-100 text-red-800' :
-                        client.daysSincePsych > 45 ? 'bg-orange-100 text-orange-800' :
-                        client.daysSincePsych > 30 ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
-                        {client.daysSincePsych} days ago
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600 mb-2">
-                      Last psych: {client.lastPsychDate?.toLocaleDateString()} • {client.psychSessions} psych session{client.psychSessions !== 1 ? 's' : ''}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs text-gray-600">Not Viable:</label>
-                      <select
-                        value={client.notViableReason || ''}
-                        onChange={(e) => handleNotViableChange(client.name, e.target.value || null)}
-                        className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
-                      >
-                        <option value="">-- Select Reason --</option>
-                        <option value="insurance">Insurance</option>
-                        <option value="no-response">No Response</option>
-                        <option value="competitor">Competitor</option>
-                        <option value="center-based">Center Based</option>
-                        <option value="financial">Financial</option>
-                        <option value="service-area">Service Area</option>
-                        <option value="age">Age</option>
-                      </select>
-                      {client.notViableReason && (
-                        <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">
-                          {client.notViableReason.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Recent Conversions</h2>
-                <p className="text-sm text-gray-600">Clients who started ABA after psych assessment</p>
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold text-green-600">{psychToABAConversion.conversionRate || 0}%</div>
-                <div className="text-xs text-gray-500">Conversion Rate</div>
-              </div>
-            </div>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {!psychToABAConversion.converted || psychToABAConversion.converted.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">🎯</div>
-                  <p className="text-gray-500 text-sm font-medium mb-2">No conversions yet</p>
-                  <p className="text-gray-400 text-xs">Clients who complete ABA services after psych will appear here</p>
-                </div>
-              ) : (
-                psychToABAConversion.converted.map((client, idx) => (
-                  <div key={idx} className="border-l-4 border-green-500 pl-3 py-2 bg-green-50">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-900">{client.name}</span>
-                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                        Converted in {client.conversionDays} days
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      Started ABA: {client.firstABADate?.toLocaleDateString()} • {client.abaSessions} ABA session{client.abaSessions !== 1 ? 's' : ''}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* PSYCH CONVERSION PIPELINE DASHBOARD */}
-        {psychDashboardData && (
-          <div className="mb-8">
-            {/* Section Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-t-lg shadow p-6 text-white">
-              <h2 className="text-2xl font-bold mb-2">🎯 Psych Assessment Conversion Pipeline</h2>
-              <p className="text-purple-100">
-                Comprehensive tracking of {psychDashboardData.totalWithPsych} clients from initial psych assessment through ABA conversion
-              </p>
-            </div>
-
-            {/* Conversion Metrics */}
-            <div className="bg-white shadow-lg">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 p-6 border-b border-gray-200">
-                <div className="text-center">
-                  <div className="text-sm font-medium text-gray-600 mb-2">Active Leads</div>
-                  <div className="text-4xl font-bold text-blue-600 mb-1">{psychDashboardData.activeLeads.length}</div>
-                  <div className="text-xs text-gray-500">0-45 days since psych</div>
-                  <div className="mt-2 text-xs text-gray-600">Ready for follow-up</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm font-medium text-gray-600 mb-2">At Risk</div>
-                  <div className="text-4xl font-bold text-orange-600 mb-1">{psychDashboardData.atRisk.length}</div>
-                  <div className="text-xs text-gray-500">46-75 days since psych</div>
-                  <div className="mt-2 text-xs text-orange-600 font-medium">⚠️ Urgent attention needed</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm font-medium text-gray-600 mb-2">Conversion Rate</div>
-                  <div className="text-4xl font-bold text-green-600 mb-1">{psychDashboardData.conversionRate}%</div>
-                  <div className="text-xs text-gray-500">Successfully converted</div>
-                  <div className="mt-2 text-xs text-gray-600">{psychDashboardData.converted.length} conversions</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm font-medium text-gray-600 mb-2">Avg Time to Convert</div>
-                  <div className="text-4xl font-bold text-purple-600 mb-1">{psychDashboardData.avgDaysToConversion}</div>
-                  <div className="text-xs text-gray-500">days on average</div>
-                  <div className="mt-2 text-xs text-gray-600">From psych → ABA</div>
-                </div>
-              </div>
-
-              {/* Pipeline Cohort Analysis */}
-              <div className="p-6 border-b border-gray-200 bg-gray-50">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Pipeline Status by Time Since Psych Assessment</h3>
-                <div className="space-y-4">
-                  {Object.entries(psychDashboardData.cohorts).map(([range, data]) => {
-                    const total = data.active + data.atRisk + data.notViable;
-                    if (total === 0) return null;
-                    return (
-                      <div key={range} className="bg-white rounded-lg p-4 border border-gray-200">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-sm font-semibold text-gray-900">Days {range}</span>
-                          <span className="text-sm font-medium text-gray-700">{total} clients</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-8 flex overflow-hidden shadow-inner">
-                          {data.active > 0 && (
-                            <div
-                              className="bg-blue-500 flex items-center justify-center text-xs text-white font-semibold transition-all hover:bg-blue-600"
-                              style={{ width: `${(data.active / total) * 100}%` }}
-                              title={`${data.active} Active`}
-                            >
-                              {data.active}
-                            </div>
-                          )}
-                          {data.atRisk > 0 && (
-                            <div
-                              className="bg-orange-500 flex items-center justify-center text-xs text-white font-semibold transition-all hover:bg-orange-600"
-                              style={{ width: `${(data.atRisk / total) * 100}%` }}
-                              title={`${data.atRisk} At Risk`}
-                            >
-                              {data.atRisk}
-                            </div>
-                          )}
-                          {data.notViable > 0 && (
-                            <div
-                              className="bg-gray-400 flex items-center justify-center text-xs text-white font-semibold transition-all hover:bg-gray-500"
-                              style={{ width: `${(data.notViable / total) * 100}%` }}
-                              title={`${data.notViable} Not Viable`}
-                            >
-                              {data.notViable}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex gap-6 mt-2 text-xs">
-                          <span className="flex items-center text-blue-600">
-                            <span className="w-3 h-3 bg-blue-500 rounded-full mr-1"></span>
-                            {data.active} Active
-                          </span>
-                          <span className="flex items-center text-orange-600">
-                            <span className="w-3 h-3 bg-orange-500 rounded-full mr-1"></span>
-                            {data.atRisk} At Risk
-                          </span>
-                          <span className="flex items-center text-gray-600">
-                            <span className="w-3 h-3 bg-gray-400 rounded-full mr-1"></span>
-                            {data.notViable} Not Viable
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Active Leads & At Risk Side by Side */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 border-b border-gray-200">
-                {/* Active Leads */}
-                <div className="p-6 border-r border-gray-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-gray-900">
-                      💙 Active Leads ({psychDashboardData.activeLeads.length})
-                    </h3>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-4">Recent psych assessments ready for follow-up (0-45 days)</p>
-                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                    {psychDashboardData.activeLeads.length === 0 ? (
-                      <p className="text-gray-500 text-sm italic text-center py-8">No active leads at this time</p>
-                    ) : (
-                      psychDashboardData.activeLeads.map((client, idx) => (
-                        <div key={idx} className="border-l-4 border-blue-500 pl-4 py-3 bg-blue-50 rounded-r-lg hover:bg-blue-100 transition-colors">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-semibold text-gray-900">{client.name}</span>
-                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                              client.daysSinceLastPsych <= 14 ? 'bg-green-100 text-green-800' :
-                              client.daysSinceLastPsych <= 30 ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-orange-100 text-orange-800'
-                            }`}>
-                              {client.daysSinceLastPsych} days ago
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-700 mb-3">
-                            <div>📅 Last psych: {client.lastPsychDate.toLocaleDateString()}</div>
-                            <div>📊 {client.psychSessions} session{client.psychSessions !== 1 ? 's' : ''}</div>
-                            <div>🏷️ Codes: {client.psychCodes.join(', ')}</div>
-                          </div>
-                          <div className="space-y-2">
-                            <select
-                              value={client.notViableReason || ''}
-                              onChange={(e) => handleNotViableChange(client.name, e.target.value || null)}
-                              className="text-xs border border-gray-300 rounded px-2 py-1.5 bg-white w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                              <option value="">✓ Mark as Not Viable (Optional)</option>
-                              <option value="insurance">Insurance Issues</option>
-                              <option value="no-response">No Response</option>
-                              <option value="competitor">Went to Competitor</option>
-                              <option value="center-based">Prefers Center Based</option>
-                              <option value="financial">Financial Constraints</option>
-                              <option value="service-area">Outside Service Area</option>
-                              <option value="age">Age Inappropriate</option>
-                              <option value="other">Other</option>
-                            </select>
-                            <textarea
-                              placeholder="💭 Add notes: follow-up attempts, barriers, next steps..."
-                              value={clientNotes[client.name] || ''}
-                              onChange={(e) => setClientNotes(prev => ({ ...prev, [client.name]: e.target.value }))}
-                              className="text-xs border border-gray-300 rounded px-2 py-1.5 w-full resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              rows="2"
-                            />
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                {/* At Risk */}
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-gray-900">
-                      ⚠️ At Risk ({psychDashboardData.atRisk.length})
-                    </h3>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-4">Getting stale - needs urgent attention (46-75 days)</p>
-                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                    {psychDashboardData.atRisk.length === 0 ? (
-                      <p className="text-gray-500 text-sm italic text-center py-8">No at-risk clients - great job!</p>
-                    ) : (
-                      psychDashboardData.atRisk.map((client, idx) => (
-                        <div key={idx} className="border-l-4 border-orange-500 pl-4 py-3 bg-orange-50 rounded-r-lg hover:bg-orange-100 transition-colors">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-semibold text-gray-900">{client.name}</span>
-                            <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full font-medium">
-                              ⏰ {client.daysSinceLastPsych} days ago
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-700 mb-3">
-                            <div>📅 Last psych: {client.lastPsychDate.toLocaleDateString()}</div>
-                            <div>📊 {client.psychSessions} session{client.psychSessions !== 1 ? 's' : ''}</div>
-                            <div>🏷️ Codes: {client.psychCodes.join(', ')}</div>
-                          </div>
-                          <div className="space-y-2">
-                            <select
-                              value={client.notViableReason || ''}
-                              onChange={(e) => handleNotViableChange(client.name, e.target.value || null)}
-                              className="text-xs border border-gray-300 rounded px-2 py-1.5 bg-white w-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                            >
-                              <option value="">✓ Mark as Not Viable (Optional)</option>
-                              <option value="insurance">Insurance Issues</option>
-                              <option value="no-response">No Response</option>
-                              <option value="competitor">Went to Competitor</option>
-                              <option value="center-based">Prefers Center Based</option>
-                              <option value="financial">Financial Constraints</option>
-                              <option value="service-area">Outside Service Area</option>
-                              <option value="age">Age Inappropriate</option>
-                              <option value="other">Other</option>
-                            </select>
-                            <textarea
-                              placeholder="💭 Add notes: follow-up attempts, barriers, next steps..."
-                              value={clientNotes[client.name] || ''}
-                              onChange={(e) => setClientNotes(prev => ({ ...prev, [client.name]: e.target.value }))}
-                              className="text-xs border border-gray-300 rounded px-2 py-1.5 w-full resize-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              rows="2"
-                            />
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Successfully Converted */}
-              <div className="p-6 bg-green-50 border-b border-gray-200">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">
-                  ✅ Successfully Converted ({psychDashboardData.converted.length})
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">Clients who started ABA services after psych assessment</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto">
-                  {psychDashboardData.converted.length === 0 ? (
-                    <p className="text-gray-500 text-sm italic col-span-3 text-center py-8">No conversions yet</p>
-                  ) : (
-                    psychDashboardData.converted.map((client, idx) => (
-                      <div key={idx} className="border-l-4 border-green-500 pl-3 py-3 bg-white rounded-r-lg shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-semibold text-gray-900 text-sm">{client.name}</span>
-                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium">
-                            🎯 {client.daysToConversion} days
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-600 space-y-1">
-                          <div>📅 Psych: {client.lastPsychDate.toLocaleDateString()}</div>
-                          <div>🎉 Started ABA: {client.firstABADate.toLocaleDateString()}</div>
-                          <div className="pt-1 border-t border-gray-200">
-                            💰 {formatCurrency(client.totalRevenue)} revenue
-                          </div>
-                          <div>{client.abaSessions} ABA sessions completed</div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Not Viable */}
-              {psychDashboardData.notViable.length > 0 && (
-                <div className="p-6 bg-gray-50 rounded-b-lg">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">
-                    ❌ Not Viable ({psychDashboardData.notViable.length})
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-4">Clients marked as unable to convert</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[300px] overflow-y-auto">
-                    {psychDashboardData.notViable.map((client, idx) => (
-                      <div key={idx} className="border-l-4 border-gray-400 pl-3 py-2 bg-white rounded-r-lg shadow-sm">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-semibold text-gray-700 text-sm">{client.name}</span>
-                          <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full font-medium">
-                            {client.notViableReason?.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          <div>Last psych: {client.lastPsychDate.toLocaleDateString()}</div>
-                          <div>({client.daysSinceLastPsych} days ago)</div>
-                          {client.notes && (
-                            <div className="mt-2 italic text-gray-500 text-xs">
-                              💭 {client.notes}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+        {loadStatus.type === 'loading' && (
+          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+            <div style={{ fontSize: 32, marginBottom: 16, animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</div>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            <p style={{ color: 'var(--muted)', fontSize: 14 }}>{loadStatus.message}</p>
           </div>
         )}
 
-        {/* Weekly Details Table */}
-        <div className="bg-white rounded-lg shadow mt-8 overflow-hidden border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">Weekly Summary</h2>
+        {loadStatus.type === 'error' && (
+          <div>
+            <div style={{ background: 'var(--red-dim)', border: '1px solid rgba(240,112,112,0.3)', borderRadius: 8, padding: '14px 16px', marginBottom: 24 }}>
+              <div style={{ color: 'var(--red)', fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Could not load billing sheet</div>
+              <div style={{ color: 'var(--muted)', fontSize: 12, fontFamily: 'DM Mono', lineHeight: 1.6 }}>{loadStatus.message}</div>
+            </div>
+            <button className="sheet-sync-btn" style={{ width: '100%', marginBottom: 20, padding: '10px', justifyContent: 'center', display: 'flex' }} onClick={loadBillingSheet}>
+              ↻ Retry Auto-Load
+            </button>
+            <div style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 12, marginBottom: 16 }}>— or upload a CSV manually —</div>
+            <label className="upload-zone">
+              <input type="file" accept=".csv" onChange={handleFileUpload} />
+              <div className="upload-icon">↑</div>
+              <div className="upload-zone-text">Upload billing CSV</div>
+              <div className="upload-zone-sub">File → Download → Comma-separated values (.csv)</div>
+            </label>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
+        )}
+
+        {loadStatus.type === 'success' && (
+          <p style={{ color: 'var(--muted)', fontSize: 13 }}>Data loaded — rendering dashboard…</p>
+        )}
+      </div>
+    </div>
+  );
+
+  /* ── Active stage detail ───────────────────────────────────── */
+  const renderFunnelDetail = () => {
+    if (!activeFunnelStage || !conversionFunnel) return null;
+    let clients = [], title = '', emptyMsg = '';
+
+    if (activeFunnelStage === 'needsAssess') {
+      clients = conversionFunnel.needsAssess.clients; title = `Needs ABA Assessment (${clients.length})`; emptyMsg = 'All psych clients have started assessment!';
+    } else if (activeFunnelStage === 'needsTherapy') {
+      clients = conversionFunnel.needsTherapy.clients; title = `Needs ABA Therapy (${clients.length})`; emptyMsg = 'All assessed clients have started therapy!';
+    } else if (activeFunnelStage === 'converted12') {
+      clients = conversionFunnel.psychToAssessConverted; title = `Psych → Assessment Conversions (${clients.length})`; emptyMsg = 'No conversions yet.';
+    } else if (activeFunnelStage === 'converted23') {
+      clients = conversionFunnel.assessToTherapyConverted; title = `Assessment → Therapy Conversions (${clients.length})`; emptyMsg = 'No conversions yet.';
+    }
+
+    return (
+      <div className="card" style={{ marginTop: 0, borderColor: 'rgba(0,212,170,0.3)' }}>
+        <div className="card-title" style={{ marginBottom: 16 }}>{title}</div>
+        <div className="client-scroll">
+          {clients.length === 0 ? <p style={{ color: 'var(--muted)', fontSize: 13 }}>{emptyMsg}</p> : clients.map((c, i) => {
+            const days = c.daysSincePsych ?? c.daysSinceAssess ?? c.daysPsychToAssess ?? c.daysAssessToTherapy ?? 0;
+            const badge = days > 60 ? 'badge-red' : days > 30 ? 'badge-amber' : 'badge-green';
+            const badgeLabel = activeFunnelStage.startsWith('converted') ? `${days}d conversion` : `${days}d ago`;
+            return (
+              <div key={i} className="funnel-client-row">
+                <div>
+                  <div className="fcr-name">{c.name}</div>
+                  <div className="fcr-meta">
+                    {activeFunnelStage === 'needsAssess' && `Last psych: ${c.lastPsych?.toLocaleDateString()} • ${c.psychDates?.length || 0} sessions`}
+                    {activeFunnelStage === 'needsTherapy' && `Last assess: ${c.lastAssess?.toLocaleDateString()} • ${c.assessDates?.length || 0} sessions`}
+                    {activeFunnelStage === 'converted12' && `Psych→Assess in ${days} days`}
+                    {activeFunnelStage === 'converted23' && `Assess→Therapy in ${days} days • started ${c.firstTherapy?.toLocaleDateString()}`}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {(activeFunnelStage === 'needsAssess' || activeFunnelStage === 'needsTherapy') && (
+                    <select className="not-viable-select" value={notViableReasons[c.name] || ''} onChange={e => setNotViableReasons(p => ({ ...p, [c.name]: e.target.value || null }))}>
+                      <option value="">Active Lead</option>
+                      <option value="Insurance">Insurance</option>
+                      <option value="No Response">No Response</option>
+                      <option value="Competitor">Competitor</option>
+                      <option value="Center Based">Center Based</option>
+                      <option value="Financial">Financial</option>
+                      <option value="Service Area">Service Area</option>
+                      <option value="Age">Age</option>
+                    </select>
+                  )}
+                  <span className={`fcr-badge ${notViableReasons[c.name] ? 'badge-gray' : badge}`}>{notViableReasons[c.name] || badgeLabel}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  /* ── Main dashboard ────────────────────────────────────────── */
+  return (
+    <div className="dash">
+      <FontLoader />
+      {/* Header */}
+      <div className="header">
+        <div>
+          <h1>Billing & Clinical Pipeline</h1>
+          <div className="header-sub mono">
+            {rawData.length.toLocaleString()} sessions · {weeklyData.length} weeks · data thru {weeklyData.length > 0 ? fmtDate(weeklyData[weeklyData.length - 1].week) : '—'}
+            {loadStatus.type === 'loading' && <span style={{ color: 'var(--amber)', marginLeft: 12 }}>⟳ refreshing…</span>}
+            {loadStatus.type === 'error' && <span style={{ color: 'var(--red)', marginLeft: 12, cursor: 'pointer' }} onClick={loadBillingSheet} title={loadStatus.message}>⚠ load error — click to retry</span>}
+          </div>
+        </div>
+        <button className="upload-btn" onClick={loadBillingSheet}>
+          <Upload size={14} /> Refresh Data
+        </button>
+      </div>
+
+      {/* KPIs */}
+      <div className="kpi-grid">
+        {[
+          { label: 'Agreed Charges', val: fmt$(latestWeek.agreedRevenue || 0), chg: latestWeek.revenueChange || 0, color: 'teal' },
+          { label: 'Billable Hours', val: `${(latestWeek.totalHours || 0).toFixed(1)}h`, chg: latestWeek.hoursChange || 0, color: 'blue' },
+          { label: 'Active Clients', val: latestWeek.clientCount || 0, chg: prevWeek.clientCount > 0 ? +((latestWeek.clientCount - prevWeek.clientCount) / prevWeek.clientCount * 100).toFixed(1) : 0, color: 'amber' },
+          { label: '$/Hour', val: fmt$(latestWeek.avgRevenuePerHour || 0), chg: prevWeek.avgRevenuePerHour > 0 ? +((latestWeek.avgRevenuePerHour - prevWeek.avgRevenuePerHour) / prevWeek.avgRevenuePerHour * 100).toFixed(1) : 0, color: 'green' },
+        ].map(({ label, val, chg, color }) => (
+          <div key={label} className={`kpi-card ${color}`}>
+            <div className="kpi-label">{label}</div>
+            <div className="kpi-value">{val}</div>
+            <div className={`kpi-change ${chg >= 0 ? 'up' : 'down'}`}>
+              {chg >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+              {Math.abs(chg)}% <span className="kpi-vs">vs last week</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Metric tabs + trend chart */}
+      <div className="card">
+        <div className="metric-tabs">
+          {[['revenue', 'Agreed Charges'], ['hours', 'Hours'], ['clients', 'Active Clients'], ['sessions', 'Sessions']].map(([k, label]) => (
+            <button key={k} className={`tab ${selectedMetric === k ? 'active' : ''}`} onClick={() => setSelectedMetric(k)}>{label}</button>
+          ))}
+        </div>
+        <ResponsiveContainer width="100%" height={280}>
+          <LineChart data={weeklyData} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#2a3140" />
+            <XAxis dataKey="week" tickFormatter={fmtShort} stroke="#4a5568" tick={{ fill: '#7d8590', fontSize: 11, fontFamily: 'DM Mono' }} />
+            <YAxis stroke="#4a5568" tick={{ fill: '#7d8590', fontSize: 11, fontFamily: 'DM Mono' }} />
+            <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #2a3140', borderRadius: 8, fontFamily: 'DM Mono', fontSize: 12 }} labelStyle={{ color: '#e6edf3' }} itemStyle={{ color: '#00d4aa' }} labelFormatter={fmtDate} formatter={v => selectedMetric === 'revenue' ? fmt$(v) : selectedMetric === 'hours' ? `${v.toFixed(1)}h` : v} />
+            {selectedMetric === 'revenue' && <Line type="monotone" dataKey="agreedRevenue" stroke="#00d4aa" strokeWidth={2} dot={{ fill: '#00d4aa', r: 3 }} name="Agreed Charges" />}
+            {selectedMetric === 'hours' && <Line type="monotone" dataKey="totalHours" stroke="#58a6ff" strokeWidth={2} dot={{ fill: '#58a6ff', r: 3 }} name="Total Hours" />}
+            {selectedMetric === 'clients' && <Line type="monotone" dataKey="clientCount" stroke="#f0a832" strokeWidth={2} dot={{ fill: '#f0a832', r: 3 }} name="Active Clients" />}
+            {selectedMetric === 'sessions' && <Line type="monotone" dataKey="sessionCount" stroke="#56d364" strokeWidth={2} dot={{ fill: '#56d364', r: 3 }} name="Sessions" />}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Two-col: heatmap + WoW changes */}
+      <div className="two-col">
+        {/* Client Hours Heatmap */}
+        <div className="card" style={{ gridColumn: '1 / -1' }}>
+          <div className="card-title">Client Hours Heatmap (97153)</div>
+          <div className="card-sub">Weekly billable hours per client — last 12 weeks</div>
+          <div className="heatmap-wrap">
+            <table className="heatmap-table">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Week Starting
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Sessions
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Clients
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Agreed Charges
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Hours
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    $/Hour
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Avg Hours/Session
-                  </th>
+                  <th className="name-col">Client</th>
+                  {heatmapData.weeks.map(w => <th key={w}>{fmtShort(w)}</th>)}
+                  <th>Total</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {weeklyData.map((week, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {formatDate(week.week)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                      {week.sessionCount}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                      {week.clientCount}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                      {formatCurrency(week.agreedRevenue)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                      {week.totalHours.toFixed(1)}h
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                      {formatCurrency(week.avgRevenuePerHour)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                      {week.avgSessionLength.toFixed(2)}h
-                    </td>
+              <tbody>
+                {heatmapData.clients.map(client => (
+                  <tr key={client.name}>
+                    <td className="name-cell" title={client.name}>{client.name}</td>
+                    {heatmapData.weeks.map(wk => {
+                      const h = client.weeks[wk] || 0;
+                      const { bg, text } = heatColor(h, heatmapData.maxHours);
+                      return (
+                        <td key={wk}>
+                          <div className="heat-cell" style={{ background: bg, color: text }} title={`${client.name} — ${fmtShort(wk)}: ${h.toFixed(1)}h`}>
+                            {h > 0 ? h.toFixed(1) : ''}
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td style={{ color: 'var(--teal)', fontFamily: 'DM Mono', fontSize: 12, textAlign: 'center' }}>{client.total.toFixed(1)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <div className="hm-legend">
+            <span className="hm-legend-label">0h</span>
+            <div className="hm-legend-boxes">
+              {[0.05, 0.2, 0.4, 0.6, 0.8, 1.0].map(p => {
+                const { bg } = heatColor(p * heatmapData.maxHours, heatmapData.maxHours);
+                return <div key={p} className="hm-legend-box" style={{ background: bg }} />;
+              })}
+            </div>
+            <span className="hm-legend-label">{heatmapData.maxHours.toFixed(0)}h</span>
+          </div>
+        </div>
+      </div>
+
+      {/* WoW changes */}
+      <div className="card">
+        <div className="card-title">Client Hour Changes — Week over Week (97153)</div>
+        <div className="card-sub">Clients with ≥25% change in billable hours</div>
+        {clientWoWChanges.length === 0
+          ? <p style={{ color: 'var(--muted)', fontSize: 13 }}>No significant changes this week.</p>
+          : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 8 }}>
+              {clientWoWChanges.slice(0, 12).map((c, i) => (
+                <div key={i} className="wow-row">
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</div>
+                    <div className="wow-hours">{c.prevH.toFixed(1)}h → {c.currH.toFixed(1)}h ({c.change > 0 ? '+' : ''}{c.change.toFixed(1)}h)</div>
+                  </div>
+                  <span className={`fcr-badge ${c.isNew ? 'badge-green' : c.isGone ? 'badge-red' : c.change > 0 ? 'badge-blue' : 'badge-amber'}`}>
+                    {c.isNew ? 'NEW' : c.isGone ? 'INACTIVE' : `${c.pct > 0 ? '+' : ''}${c.pct.toFixed(0)}%`}
+                  </span>
+                </div>
+              ))}
+            </div>
+        }
+      </div>
+
+      {/* ── Conversion Funnel ─────────────────────────────────── */}
+      {conversionFunnel && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div>
+              <div className="card-title" style={{ fontSize: 18 }}>Clinical Conversion Pipeline</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'DM Mono', marginTop: 4 }}>Psych Assessment → ABA Assessment (97151) → ABA Therapy (97153)</div>
+            </div>
+            <button className="export-btn" onClick={exportCSV} disabled={isExporting}>
+              <Download size={13} /> {isExporting ? 'Exporting…' : 'Export CSV'}
+            </button>
+          </div>
+
+          {/* Google Sheet sync panel */}
+          <div className="sheet-panel">
+            <div className="sheet-panel-header" onClick={() => setShowSheetPanel(p => !p)}>
+              <div className="sheet-panel-title">
+                <div className="sheet-icon">G</div>
+                Sync Not-Viable Reasons from Google Sheet
+                <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono', marginLeft: 4 }}>
+                  {Object.keys(notViableReasons).filter(k => notViableReasons[k]).length > 0
+                    ? `(${Object.keys(notViableReasons).filter(k => notViableReasons[k]).length} reasons loaded)`
+                    : '(none loaded)'}
+                </span>
+              </div>
+              <span style={{ color: 'var(--muted)', fontSize: 12, fontFamily: 'DM Mono' }}>{showSheetPanel ? '▲' : '▼'}</span>
+            </div>
+            {showSheetPanel && (
+              <div className="sheet-body">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'DM Mono', lineHeight: 1.6 }}>
+                    Auto-syncing from{' '}
+                    <a
+                      href="https://docs.google.com/spreadsheets/d/1RIV-wZCmC3mYTqOXu7Gk6-z-pT_HcXYIL459eWp2SMo/edit"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: 'var(--teal)', textDecoration: 'underline' }}
+                    >
+                      Not-Viable Reasons Sheet ↗
+                    </a>
+                    {'. '}Columns used: <strong style={{ color: 'var(--text)' }}>ClientName</strong>,{' '}
+                    <strong style={{ color: 'var(--text)' }}>NotViableReason</strong>.
+                    Syncs automatically each time you load billing data.
+                  </div>
+                  <button className="sheet-sync-btn" onClick={syncGoogleSheet} disabled={sheetStatus?.type === 'loading'} style={{ flexShrink: 0 }}>
+                    {sheetStatus?.type === 'loading' ? 'Syncing…' : '↻ Re-sync'}
+                  </button>
+                </div>
+                {sheetStatus && (
+                  <div className={
+                    sheetStatus.type === 'success' ? 'sheet-status-ok' :
+                    sheetStatus.type === 'error' ? 'sheet-status-err' : 'sheet-status-loading'
+                  }>{sheetStatus.message}</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Funnel stages + spanning arrow */}
+          <div className="funnel-wrap">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr auto 1fr', gap: 0, alignItems: 'center' }}>
+              {/* Stage 1 */}
+              <div className={`funnel-stage ${activeFunnelStage === 'needsAssess' ? 'active' : ''}`} onClick={() => setActiveFunnelStage(prev => prev === 'needsAssess' ? null : 'needsAssess')}>
+                <div className="stage-header">
+                  <span className="stage-code">90791, 96130–96137</span>
+                  <span className="fcr-badge badge-blue">{conversionFunnel.stages.psych.count} clients</span>
+                </div>
+                <div className="stage-name">Psych Assessment</div>
+                <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                  <div>
+                    <span className="stage-count psych">{conversionFunnel.needsAssess.count}</span>
+                    <div className="stage-meta">awaiting 97151</div>
+                  </div>
+                  <button style={{ fontSize: 11, color: 'var(--blue)', background: 'var(--blue-dim)', border: '1px solid rgba(88,166,255,0.3)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: 'DM Mono' }} onClick={e => { e.stopPropagation(); setActiveFunnelStage(p => p === 'converted12' ? null : 'converted12'); }}>
+                    {conversionFunnel.psychToAssessConverted.length} converted ↓
+                  </button>
+                </div>
+              </div>
+
+              {/* Arrow 1→2 */}
+              <div className="funnel-connector" style={{ flexDirection: 'column', padding: '0 12px' }}>
+                <ChevronRight size={20} color="var(--muted)" />
+                <div className="conv-rate">{conversionFunnel.psychToAssessRate}%</div>
+                <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono', marginTop: 4 }}>avg {conversionFunnel.avgDaysPsychToAssess}d</div>
+              </div>
+
+              {/* Stage 2 */}
+              <div className={`funnel-stage ${activeFunnelStage === 'needsTherapy' ? 'active' : ''}`} onClick={() => setActiveFunnelStage(prev => prev === 'needsTherapy' ? null : 'needsTherapy')}>
+                <div className="stage-header">
+                  <span className="stage-code">97151</span>
+                  <span className="fcr-badge badge-amber">{conversionFunnel.stages.assess.count} clients</span>
+                </div>
+                <div className="stage-name">ABA Assessment</div>
+                <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                  <div>
+                    <span className="stage-count assess">{conversionFunnel.needsTherapy.count}</span>
+                    <div className="stage-meta">awaiting 97153</div>
+                  </div>
+                  <button style={{ fontSize: 11, color: 'var(--amber)', background: 'var(--amber-dim)', border: '1px solid rgba(240,168,50,0.3)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: 'DM Mono' }} onClick={e => { e.stopPropagation(); setActiveFunnelStage(p => p === 'converted23' ? null : 'converted23'); }}>
+                    {conversionFunnel.assessToTherapyConverted.length} converted ↓
+                  </button>
+                </div>
+              </div>
+
+              {/* Arrow 2→3 */}
+              <div className="funnel-connector" style={{ flexDirection: 'column', padding: '0 12px' }}>
+                <ChevronRight size={20} color="var(--muted)" />
+                <div className="conv-rate">{conversionFunnel.assessToTherapyRate}%</div>
+                <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono', marginTop: 4 }}>avg {conversionFunnel.avgDaysAssessToTherapy}d</div>
+              </div>
+
+              {/* Stage 3 */}
+              <div className="funnel-stage" style={{ cursor: 'default' }}>
+                <div className="stage-header">
+                  <span className="stage-code">97153</span>
+                  <span className="fcr-badge badge-green">{conversionFunnel.stages.therapy.count} clients</span>
+                </div>
+                <div className="stage-name">ABA Therapy</div>
+                <div style={{ marginTop: 8 }}>
+                  <span className="stage-count therapy">{conversionFunnel.stages.therapy.count}</span>
+                  <div className="stage-meta">active in therapy</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Spanning arrow: Psych → Therapy overall rate */}
+            {(() => {
+              const totalPsychClients = conversionFunnel.stages.psych.count;
+              const therapyClients = conversionFunnel.stages.therapy.count;
+              const overallRate = totalPsychClients > 0 ? Math.round(therapyClients / totalPsychClients * 100) : 0;
+              const avgTotal = conversionFunnel.avgDaysPsychToAssess + conversionFunnel.avgDaysAssessToTherapy;
+              return (
+                <div className="span-arrow">
+                  <div className="span-bracket">
+                    <div className="span-bracket-left" />
+                    <div className="span-label">
+                      <span className="span-arrow-icon">↕</span>
+                      <span className="span-rate-pill">
+                        {overallRate}% overall · Psych → Therapy
+                      </span>
+                      <span className="span-days">avg {avgTotal}d end-to-end</span>
+                    </div>
+                    <div className="span-bracket-right" />
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Detail panel */}
+          {renderFunnelDetail()}
+        </div>
+      )}
+
+      {/* Weekly table */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden', marginTop: 24 }}>
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)' }}>
+          <div className="card-title">Weekly Summary</div>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Week</th>
+                <th>Sessions</th>
+                <th>Clients</th>
+                <th>Agreed Charges</th>
+                <th>Hours</th>
+                <th>$/Hour</th>
+                <th>Avg Hrs/Session</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...weeklyData].reverse().map((w, i) => (
+                <tr key={i}>
+                  <td>{fmtDate(w.week)}</td>
+                  <td>{w.sessionCount}</td>
+                  <td>{w.clientCount}</td>
+                  <td>{fmt$(w.agreedRevenue)}</td>
+                  <td>{w.totalHours.toFixed(1)}h</td>
+                  <td>{fmt$(w.avgRevenuePerHour)}</td>
+                  <td>{w.avgSessionLength.toFixed(2)}h</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
