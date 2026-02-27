@@ -65,12 +65,13 @@ const FontLoader = () => (
 
     /* Heatmap */
     .heatmap-wrap { overflow-x: auto; }
-    .heatmap-table { border-collapse: collapse; width: 100%; min-width: 500px; }
-    .heatmap-table th { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--muted); text-align: center; padding: 4px 6px; font-weight: 400; }
-    .heatmap-table th.name-col { text-align: left; min-width: 140px; }
-    .heatmap-table td { padding: 3px 4px; }
-    .heatmap-table td.name-cell { font-size: 12px; color: var(--text); padding-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; font-weight: 500; }
-    .heat-cell { width: 36px; height: 26px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-family: 'DM Mono', monospace; font-size: 9px; cursor: default; transition: transform 0.1s; }
+    .heatmap-table { border-collapse: collapse; table-layout: fixed; width: 100%; }
+    .heatmap-table th { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--muted); text-align: center; padding: 4px 2px; font-weight: 400; width: 52px; overflow: hidden; }
+    .heatmap-table th.name-col { text-align: left; width: 160px; }
+    .heatmap-table th.total-col { width: 52px; }
+    .heatmap-table td { padding: 3px 2px; width: 52px; }
+    .heatmap-table td.name-cell { font-size: 12px; color: var(--text); padding-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 160px; font-weight: 500; }
+    .heat-cell { width: 46px; height: 26px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-family: 'DM Mono', monospace; font-size: 9px; cursor: default; transition: transform 0.1s; margin: 0 auto; }
     .heat-cell:hover { transform: scale(1.15); z-index: 10; position: relative; }
     .hm-legend { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
     .hm-legend-label { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; }
@@ -291,8 +292,8 @@ const WeeklyBillingTrends = () => {
       vals.push(cur);
       const dv = vals[dateIdx]?.trim().replace(/^"|"$/g, '');
       if (!dv || dv.length < 8 || dv === 'DateOfService' || dv.includes('#')) continue;
-      const fn = vals[fnIdx]?.trim().replace(/^"|"$/g, '') || '';
-      const ln = vals[lnIdx]?.trim().replace(/^"|"$/g, '') || '';
+      const fn = vals[fnIdx]?.trim().replace(/^"|"$/g, '').replace(/[^\x20-\x7E]/g, '') || '';
+      const ln = vals[lnIdx]?.trim().replace(/^"|"$/g, '').replace(/[^\x20-\x7E]/g, '') || '';
       data.push({
         DateOfService: dv,
         ClientChargesAgreedTotal: parseFloat(vals[agreedIdx]?.replace(/^"|"$/g, '') || 0),
@@ -675,7 +676,7 @@ const WeeklyBillingTrends = () => {
                 <tr>
                   <th className="name-col">Client</th>
                   {heatmapData.weeks.map(w => <th key={w}>{fmtShort(w)}</th>)}
-                  <th>Total</th>
+                  <th className="total-col">Total</th>
                 </tr>
               </thead>
               <tbody>
