@@ -1,5 +1,6 @@
 exports.handler = async function(event) {
-  const sheetUrl = event.queryStringParameters?.url;
+  const rawUrl = event.queryStringParameters?.url;
+  const sheetUrl = rawUrl ? decodeURIComponent(rawUrl) : null;
 
   if (!sheetUrl || !sheetUrl.startsWith('https://docs.google.com/spreadsheets/')) {
     return { statusCode: 400, body: 'Invalid URL' };
