@@ -174,6 +174,29 @@ const FontLoader = () => (
     .span-arrow-icon { color: rgba(255,255,255,0.25); font-size: 14px; }
     .span-rate-pill { font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.25); color: var(--blue); padding: 4px 14px; border-radius: 20px; }
     .span-days { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); }
+
+    /* Client profitability table */
+    .profit-table { width: 100%; border-collapse: collapse; }
+    .profit-table th { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--surface2); text-align: right; white-space: nowrap; }
+    .profit-table th:first-child { text-align: left; }
+    .profit-table td { padding: 9px 12px; font-size: 12px; font-family: 'DM Mono', monospace; text-align: right; border-bottom: 1px solid var(--border); color: var(--text); }
+    .profit-table td:first-child { text-align: left; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; color: var(--text); }
+    .profit-table tr:hover td { background: var(--surface2); }
+    .profit-table tr.row-bad td { background: rgba(240,112,112,0.06); }
+    .profit-table tr.row-warn td { background: rgba(240,168,50,0.06); }
+    .profit-table tr.row-good td { background: rgba(0,212,170,0.04); }
+    .margin-bar-wrap { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+    .margin-bar { height: 6px; border-radius: 3px; min-width: 2px; }
+    .margin-val { font-family: 'DM Mono', monospace; font-size: 11px; min-width: 42px; text-align: right; }
+    .sort-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 10px; padding: 0 2px; }
+    .sort-btn.active { color: var(--teal); }
+    .profit-filters { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+    .filter-chip { padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); font-family: 'DM Mono', monospace; transition: all 0.15s; }
+    .filter-chip.active { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+    .filter-chip.warn { border-color: var(--amber); color: var(--amber); background: var(--amber-dim); }
+    .filter-chip.warn.active { background: rgba(240,168,50,0.2); }
+    .filter-chip.danger { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+    .filter-chip.danger.active { background: rgba(240,112,112,0.2); }
   `}</style>
 );
 
@@ -194,8 +217,8 @@ const heatColor = (hours, max) => {
 
 /* ─── Main component ───────────────────────────────────────────── */
 const WeeklyBillingTrends = () => {
-  const BILLING_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1IwjOdgUG-gHzaQdfwxyUtIcpkDFyFKBylfHhVJvtTe0/export?format=csv&gid=413215624';
-  const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1RIV-wZCmC3mYTqOXu7Gk6-z-pT_HcXYIL459eWp2SMo/export?format=csv&gid=0';
+  const BILLING_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1IwjOdgUG-gHzaQdfwxyUtIcpkDFyFKBylfHhVJvtTe0/pub?output=csv&gid=413215624';
+  const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1RIV-wZCmC3mYTqOXu7Gk6-z-pT_HcXYIL459eWp2SMo/pub?output=csv&gid=0';
   const [selectedMetric, setSelectedMetric] = useState('revenue');
   const [rawData, setRawData] = useState([]);
   const [showUpload, setShowUpload] = useState(false);
@@ -203,6 +226,8 @@ const WeeklyBillingTrends = () => {
   const [notViableReasons, setNotViableReasons] = useState({});
   const [activeFunnelStage, setActiveFunnelStage] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [profitSort, setProfitSort] = useState('gp'); // 'gp' | 'margin' | 'revenue' | 'hours'
+  const [profitFilter, setProfitFilter] = useState('all'); // 'all' | 'bad' | 'warn' | 'good'
   const [sheetStatus, setSheetStatus] = useState(null);
   const [showSheetPanel, setShowSheetPanel] = useState(false);
 
@@ -239,10 +264,10 @@ const WeeklyBillingTrends = () => {
     setLoadStatus({ type: 'loading', message: 'Loading billing data…' });
     try {
       const resp = await fetch(BILLING_SHEET_URL);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status} — make sure the sheet is shared as "Anyone with the link can view."`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} — sheet must be published to the web: File → Share → Publish to web → select sheet → CSV → Publish.`);
       const text = await resp.text();
       // Check if we got an HTML redirect (auth wall) instead of CSV
-      if (text.trim().startsWith('<!')) throw new Error('Sheet returned an HTML page — it needs to be shared as "Anyone with the link can view."');
+      if (text.trim().startsWith('<!')) throw new Error('Sheet returned an HTML page — publish it to the web: File → Share → Publish to web → CSV.');
       const parsed = parseCSV(text);
       if (parsed.length === 0) throw new Error('No valid billing rows found. Check that the sheet tab matches the expected column headers.');
       setRawData(parsed);
@@ -277,9 +302,22 @@ const WeeklyBillingTrends = () => {
     if (lines.length < 2) return [];
     const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
     const idx = (name) => headers.findIndex(h => h === name);
+
     const dateIdx = idx('DateOfService'), agreedIdx = idx('ClientChargesAgreedTotal'),
       unitsIdx = idx('UnitsOfService'), hoursIdx = idx('TimeWorkedInHours'),
       fnIdx = idx('ClientFirstName'), lnIdx = idx('ClientLastName'), codeIdx = idx('ProcedureCode');
+
+    // Provider/staff name — try multiple common column name patterns
+    const staffFnIdx = ['StaffFirstName','ProviderFirstName','EmployeeFirstName','RenderingProviderFirstName',
+                        'ServiceProviderFirstName','TherapistFirstName','StaffFirst','ProviderFirst']
+                       .map(n => idx(n)).find(i => i >= 0) ?? -1;
+    const staffLnIdx = ['StaffLastName','ProviderLastName','EmployeeLastName','RenderingProviderLastName',
+                        'ServiceProviderLastName','TherapistLastName','StaffLast','ProviderLast']
+                       .map(n => idx(n)).find(i => i >= 0) ?? -1;
+    const staffFullIdx = ['StaffName','ProviderName','EmployeeName','RenderingProvider',
+                          'ServiceProvider','Therapist','Staff','Provider']
+                         .map(n => idx(n)).find(i => i >= 0) ?? -1;
+
     const data = [];
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i]; if (!line.trim()) continue;
@@ -294,13 +332,25 @@ const WeeklyBillingTrends = () => {
       if (!dv || dv.length < 8 || dv === 'DateOfService' || dv.includes('#')) continue;
       const fn = vals[fnIdx]?.trim().replace(/^"|"$/g, '').replace(/[^\x20-\x7E]/g, '') || '';
       const ln = vals[lnIdx]?.trim().replace(/^"|"$/g, '').replace(/[^\x20-\x7E]/g, '') || '';
+
+      // Build staff name from whatever columns exist
+      let staffName = '';
+      if (staffFnIdx >= 0 || staffLnIdx >= 0) {
+        const sfn = vals[staffFnIdx]?.trim().replace(/^"|"$/g, '').replace(/[^\x20-\x7E]/g, '') || '';
+        const sln = vals[staffLnIdx]?.trim().replace(/^"|"$/g, '').replace(/[^\x20-\x7E]/g, '') || '';
+        staffName = `${sfn} ${sln}`.trim();
+      } else if (staffFullIdx >= 0) {
+        staffName = vals[staffFullIdx]?.trim().replace(/^"|"$/g, '').replace(/[^\x20-\x7E]/g, '') || '';
+      }
+
       data.push({
         DateOfService: dv,
         ClientChargesAgreedTotal: parseFloat(vals[agreedIdx]?.replace(/^"|"$/g, '') || 0),
         UnitsOfService: parseFloat(vals[unitsIdx]?.replace(/^"|"$/g, '') || 0),
         TimeWorkedInHours: parseFloat(vals[hoursIdx]?.replace(/^"|"$/g, '') || 0),
         ClientName: `${fn} ${ln}`.trim(),
-        ProcedureCode: vals[codeIdx]?.trim().replace(/^"|"$/g, '') || ''
+        ProcedureCode: vals[codeIdx]?.trim().replace(/^"|"$/g, '') || '',
+        StaffName: staffName
       });
     }
     return data;
@@ -486,6 +536,95 @@ const WeeklyBillingTrends = () => {
       assessToTherapyConverted: assessToTherapyConverted.sort((a, b) => a.daysAssessToTherapy - b.daysAssessToTherapy).slice(0, 10),
     };
   }, [rawData, notViableReasons]);
+
+  // ── Per-RBT cost rates (from payroll + GP analysis 09/19/25–02/09/26) ──
+  // Cost per BILLED hour = total direct employer cost / billed hours (97153)
+  // This is what we lose per hour if a client cancels on that RBT
+  const RBT_COST_RATES = {
+    'Dominick Feaster':          { costPerBilledHr: 35.87, costPerPaidHr: 27.31 },
+    'Joanne Hawkins':            { costPerBilledHr: 29.48, costPerPaidHr: 18.89 },
+    'Danielle Thompson':         { costPerBilledHr: 33.77, costPerPaidHr: 20.38 },
+    'Angela Campbell':           { costPerBilledHr: 39.40, costPerPaidHr: 26.38 },
+    'Ivette Navarro':            { costPerBilledHr: 27.30, costPerPaidHr: 22.54 },
+    'Briana Ashe':               { costPerBilledHr: 32.40, costPerPaidHr: 32.40 },
+    'Skylar Hofmann':            { costPerBilledHr: 40.31, costPerPaidHr: 30.46 },
+    'Laura Hernandez':           { costPerBilledHr: 39.33, costPerPaidHr: 29.86 },
+    'Laura Cristal Hernandez Falu': { costPerBilledHr: 39.33, costPerPaidHr: 29.86 },
+    'Lexie Martin':              { costPerBilledHr: 33.95, costPerPaidHr: 30.09 },
+    'Trenica Scott':             { costPerBilledHr: 49.85, costPerPaidHr: 29.82 },
+    'Skyla Saari':               { costPerBilledHr: 32.42, costPerPaidHr: 27.48 },
+    'Christopher Orange-Ocasio': { costPerBilledHr: 23.70, costPerPaidHr: 28.27 },
+    'Hannah Hilkey':             { costPerBilledHr: 24.04, costPerPaidHr: 27.31 },
+    'Jasmine Juneau':            { costPerBilledHr: 31.04, costPerPaidHr: 29.50 },
+    'Nicole Alessie':            { costPerBilledHr: 36.81, costPerPaidHr: 29.55 },
+    'Michelle Baez':             { costPerBilledHr: 59.70, costPerPaidHr: 24.37 },
+    'Kyleigh Morris':            { costPerBilledHr: 30.78, costPerPaidHr: 28.97 },
+    'Thang Tat Nguyen':          { costPerBilledHr: 73.80, costPerPaidHr: 23.11 },
+  };
+  const AVG_COST_PER_BILLED_HR = 36.93; // fallback when RBT not matched
+
+  const clientProfitability = useMemo(() => {
+    if (!rawData.length) return { clients: [], hasStaffData: false };
+
+    const clients = {};
+    let staffMatched = 0, staffTotal = 0;
+
+    rawData.forEach(entry => {
+      if (entry.ProcedureCode !== '97153') return;
+      const name = entry.ClientName;
+      if (!name || name === ' ') return;
+      const charges = entry.ClientChargesAgreedTotal || 0;
+      const hours = charges > 0 ? (entry.TimeWorkedInHours || 0) : 0;
+      const staff = entry.StaffName || '';
+
+      staffTotal++;
+      if (staff) staffMatched++;
+
+      if (!clients[name]) clients[name] = { name, revenue: 0, hours: 0, sessions: 0, staffHours: {}, primaryStaff: '' };
+      clients[name].revenue += charges;
+      clients[name].hours += hours;
+      clients[name].sessions += 1;
+
+      // Track hours by staff to find primary RBT
+      if (staff && hours > 0) {
+        clients[name].staffHours[staff] = (clients[name].staffHours[staff] || 0) + hours;
+      }
+    });
+
+    const hasStaffData = staffMatched > staffTotal * 0.5; // >50% rows have staff name
+
+    const result = Object.values(clients).map(c => {
+      // Primary RBT = whoever has most hours with this client
+      const staffEntries = Object.entries(c.staffHours).sort((a, b) => b[1] - a[1]);
+      const primaryStaff = staffEntries[0]?.[0] || '';
+      const secondaryStaff = staffEntries.slice(1).map(e => e[0]);
+
+      // Compute cost: use actual RBT rates if we have staff data, else avg
+      let totalCost = 0;
+      if (hasStaffData && Object.keys(c.staffHours).length > 0) {
+        // Cost per RBT's actual hours with this client
+        Object.entries(c.staffHours).forEach(([rbt, hrs]) => {
+          const rate = RBT_COST_RATES[rbt]?.costPerBilledHr ?? AVG_COST_PER_BILLED_HR;
+          totalCost += hrs * rate;
+        });
+        // Hours with no staff match → use avg
+        const unmatchedHrs = c.hours - Object.values(c.staffHours).reduce((s, h) => s + h, 0);
+        totalCost += Math.max(0, unmatchedHrs) * AVG_COST_PER_BILLED_HR;
+      } else {
+        totalCost = c.hours * AVG_COST_PER_BILLED_HR;
+      }
+
+      const estGP = c.revenue - totalCost;
+      const estMargin = c.revenue > 0 ? estGP / c.revenue : 0;
+      const ratePerHr = c.hours > 0 ? c.revenue / c.hours : 0;
+      const costPerHr = c.hours > 0 ? totalCost / c.hours : 0;
+      const flag = estMargin < 0.20 ? 'bad' : estMargin < 0.35 ? 'warn' : 'good';
+
+      return { ...c, primaryStaff, secondaryStaff, totalCost, estGP, estMargin, ratePerHr, costPerHr, flag };
+    }).filter(c => c.revenue > 0);
+
+    return { clients: result, hasStaffData };
+  }, [rawData]);
 
   const latestWeek = weeklyData[weeklyData.length - 1] || {};
   const prevWeek = weeklyData[weeklyData.length - 2] || {};
@@ -888,6 +1027,116 @@ const WeeklyBillingTrends = () => {
           {renderFunnelDetail()}
         </div>
       )}
+
+      {/* ── Client Profitability ──────────────────────────────── */}
+      {clientProfitability.length > 0 && (() => {
+        const sorted = [...clientProfitability].sort((a, b) => {
+          if (profitSort === 'margin') return a.estMargin - b.estMargin;
+          if (profitSort === 'revenue') return b.revenue - a.revenue;
+          if (profitSort === 'hours') return b.hours - a.hours;
+          return a.estGP - b.estGP; // default: worst GP first
+        });
+        const filtered = profitFilter === 'all' ? sorted : sorted.filter(c => c.flag === profitFilter);
+        const maxRev = Math.max(...clientProfitability.map(c => c.revenue));
+        const badCount = clientProfitability.filter(c => c.flag === 'bad').length;
+        const warnCount = clientProfitability.filter(c => c.flag === 'warn').length;
+        const goodCount = clientProfitability.filter(c => c.flag === 'good').length;
+
+        return (
+          <div className="card" style={{ marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div>
+                <div className="card-title">Client Profitability (97153)</div>
+                <div className="card-sub" style={{ marginBottom: 0 }}>
+                  Est. gross profit per client · cost = hours × $36.93/hr (avg from payroll analysis)
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 16, fontFamily: 'DM Mono', fontSize: 11 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--red)' }}>{badCount}</div>
+                  <div style={{ color: 'var(--muted)' }}>margin &lt;20%</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--amber)' }}>{warnCount}</div>
+                  <div style={{ color: 'var(--muted)' }}>margin 20–35%</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--teal)' }}>{goodCount}</div>
+                  <div style={{ color: 'var(--muted)' }}>margin &gt;35%</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="profit-filters">
+              {[
+                ['all', 'All Clients', '', clientProfitability.length],
+                ['bad', '⚠ Losing Money / Low Margin', 'danger', badCount],
+                ['warn', '⚡ Watch List', 'warn', warnCount],
+                ['good', '✓ Healthy', '', goodCount],
+              ].map(([key, lbl, cls, cnt]) => (
+                <button key={key} className={`filter-chip ${cls} ${profitFilter === key ? 'active' : ''}`}
+                  onClick={() => setProfitFilter(key)}>
+                  {lbl} <span style={{ opacity: 0.7 }}>({cnt})</span>
+                </button>
+              ))}
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)', fontFamily: 'DM Mono' }}>
+                Sort:
+                {[['gp','Est. GP'],['margin','Margin'],['revenue','Revenue'],['hours','Hours']].map(([k,lbl]) => (
+                  <button key={k} className={`sort-btn ${profitSort===k?'active':''}`} onClick={() => setProfitSort(k)}>{lbl}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table className="profit-table">
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th>Revenue</th>
+                    <th>Est. Cost</th>
+                    <th>Est. GP</th>
+                    <th>Margin</th>
+                    <th>$/Hr</th>
+                    <th>Hrs</th>
+                    <th>Sessions</th>
+                    <th>Revenue Bar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((c, i) => {
+                    const barW = Math.round((c.revenue / maxRev) * 120);
+                    const marginColor = c.flag === 'bad' ? 'var(--red)' : c.flag === 'warn' ? 'var(--amber)' : 'var(--teal)';
+                    return (
+                      <tr key={i} className={`row-${c.flag}`}>
+                        <td>{c.name}</td>
+                        <td>{fmt$(c.revenue)}</td>
+                        <td style={{ color: 'var(--muted)' }}>{fmt$(c.estCost)}</td>
+                        <td style={{ color: c.estGP >= 0 ? 'var(--teal)' : 'var(--red)', fontWeight: 700 }}>{fmt$(c.estGP)}</td>
+                        <td>
+                          <div className="margin-bar-wrap">
+                            <div className="margin-bar" style={{ width: Math.max(Math.round(c.estMargin * 80), 2), background: marginColor }} />
+                            <span className="margin-val" style={{ color: marginColor }}>{(c.estMargin * 100).toFixed(1)}%</span>
+                          </div>
+                        </td>
+                        <td style={{ color: 'var(--muted)' }}>{fmt$(c.ratePerHr)}</td>
+                        <td>{c.hours.toFixed(1)}</td>
+                        <td>{c.sessions}</td>
+                        <td>
+                          <div style={{ height: 6, width: barW, background: 'var(--blue)', opacity: 0.5, borderRadius: 3 }} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ marginTop: 12, fontSize: 11, color: 'var(--muted)', fontFamily: 'DM Mono', lineHeight: 1.6 }}>
+              * Cost estimate uses avg $36.93/billed hr across all RBTs. Actual cost varies by which RBT serves each client.
+              Overhead (BCBAs, admin: ~${(240421).toLocaleString()}/period) not allocated to clients — shown at practice level in the Excel report.
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Weekly table */}
       <div className="card" style={{ padding: 0, overflow: 'hidden', marginTop: 24 }}>
