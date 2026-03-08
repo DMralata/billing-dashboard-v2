@@ -1,9 +1,11 @@
 exports.handler = async function(event) {
-  const rawUrl = event.queryStringParameters?.url;
-  const sheetUrl = rawUrl ? decodeURIComponent(rawUrl) : null;
+  // Use rawQuery to avoid Netlify decoding %26 into & and splitting gid off
+  const raw = event.rawQuery || '';
+  const match = raw.match(/(?:^|&)url=([^&]*.*)/);
+  const sheetUrl = match ? decodeURIComponent(match[1]) : null;
 
   if (!sheetUrl || !sheetUrl.startsWith('https://docs.google.com/spreadsheets/')) {
-    return { statusCode: 400, body: 'Invalid URL' };
+    return { statusCode: 400, body: `Invalid URL: ${sheetUrl}` };
   }
 
   try {
