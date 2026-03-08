@@ -217,8 +217,8 @@ const heatColor = (hours, max) => {
 
 /* ─── Main component ───────────────────────────────────────────── */
 const WeeklyBillingTrends = () => {
-  const BILLING_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1IwjOdgUG-gHzaQdfwxyUtIcpkDFyFKBylfHhVJvtTe0/pub?output=csv&gid=413215624';
-  const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1RIV-wZCmC3mYTqOXu7Gk6-z-pT_HcXYIL459eWp2SMo/pub?output=csv&gid=0';
+  const BILLING_SHEET_URL = 'https://corsproxy.io/?url=https://docs.google.com/spreadsheets/d/1IwjOdgUG-gHzaQdfwxyUtIcpkDFyFKBylfHhVJvtTe0/pub?output=csv&gid=413215624';
+  const SHEET_URL = 'https://corsproxy.io/?url=https://docs.google.com/spreadsheets/d/1RIV-wZCmC3mYTqOXu7Gk6-z-pT_HcXYIL459eWp2SMo/pub?output=csv&gid=0';
   const [selectedMetric, setSelectedMetric] = useState('revenue');
   const [rawData, setRawData] = useState([]);
   const [showUpload, setShowUpload] = useState(false);
