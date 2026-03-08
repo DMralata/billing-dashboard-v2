@@ -217,7 +217,7 @@ const heatColor = (hours, max) => {
 
 /* ─── Main component ───────────────────────────────────────────── */
 const WeeklyBillingTrends = () => {
-  const BILLING_SHEET_URL = '/api/sheets-proxy?url=' + encodeURIComponent('https://docs.google.com/spreadsheets/d/1IwjOdgUG-gHzaQdfwxyUtIcpkDFyFKBylfHhVJvtTe0/pub?output=csv&gid=413215624');
+  const BILLING_SHEET_URL = '/api/sheets-proxy?url=' + encodeURIComponent('https://docs.google.com/spreadsheets/d/e/2PACX-1vRl4fX-z2VZKQveQMinCvaSaedp0nwEF5WV1Lp1Tfon7YHY54FKafl0GTLtDxNmpZL40KWhznzseZ14/pub?output=csv');
   const SHEET_URL = '/api/sheets-proxy?url=' + encodeURIComponent('https://docs.google.com/spreadsheets/d/1RIV-wZCmC3mYTqOXu7Gk6-z-pT_HcXYIL459eWp2SMo/pub?output=csv&gid=0');
   const [selectedMetric, setSelectedMetric] = useState('revenue');
   const [rawData, setRawData] = useState([]);
