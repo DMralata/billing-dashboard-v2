@@ -1,22 +1,23 @@
-export default async (request, context) => {
-  const url = new URL(request.url);
-  const sheetUrl = url.searchParams.get('url');
+exports.handler = async function(event) {
+  const sheetUrl = event.queryStringParameters?.url;
 
   if (!sheetUrl || !sheetUrl.startsWith('https://docs.google.com/spreadsheets/')) {
-    return new Response('Invalid URL', { status: 400 });
+    return { statusCode: 400, body: 'Invalid URL' };
   }
 
-  const resp = await fetch(sheetUrl);
-  const text = await resp.text();
-
-  return new Response(text, {
-    status: resp.status,
-    headers: {
-      'Content-Type': 'text/csv',
-      'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'no-cache',
-    },
-  });
+  try {
+    const resp = await fetch(sheetUrl);
+    const text = await resp.text();
+    return {
+      statusCode: resp.status,
+      headers: {
+        'Content-Type': 'text/csv',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-cache',
+      },
+      body: text,
+    };
+  } catch (err) {
+    return { statusCode: 500, body: err.message };
+  }
 };
-
-export const config = { path: '/api/sheets-proxy' };
