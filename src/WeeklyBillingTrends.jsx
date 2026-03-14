@@ -508,7 +508,7 @@ const WeeklyBillingTrends = () => {
       if (hasPsych) psychCount++;
       if (hasAssess) assessCount++;
       // Only count 97153 clients who came through a prior stage
-      if (hasTherapy && (hasPsych || hasAssess)) therapyCount++;
+      if (hasTherapy && hasPsych) therapyCount++;
 
       const lastPsych = hasPsych ? new Date(Math.max(...c.psychDates)) : null;
       const lastAssess = hasAssess ? new Date(Math.max(...c.assessDates)) : null;
