@@ -534,7 +534,7 @@ const WeeklyBillingTrends = () => {
 
     const knownIds = new Set(Object.keys(idToName));
     const notViableCount = Object.entries(notViableReasons).filter(([k, v]) => v && (knownIds.has(k) || Object.values(clients).some(c => c.name === k))).length;
-    const totalPsych = psychCount;
+    const totalPsych = psychToAssessConverted.length + notViableCount;
     const totalAssess = assessCount;
     const psychToAssessRate = totalPsych > 0 ? (psychToAssessConverted.length / totalPsych * 100).toFixed(0) : 0;
     const assessToTherapyRate = totalAssess > 0 ? (assessToTherapyConverted.length / totalAssess * 100).toFixed(0) : 0;
