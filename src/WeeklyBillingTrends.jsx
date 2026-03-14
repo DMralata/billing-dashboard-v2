@@ -516,11 +516,14 @@ const WeeklyBillingTrends = () => {
       const daysSinceAssess = lastAssess ? Math.floor((now - lastAssess) / 86400000) : null;
 
       // Exclude not-viable from awaiting lists
+      const staleAssess = [];
       if (!isNotViable && hasPsych && !hasAssess && !hasTherapy && daysSincePsych <= 90) {
         psychOnly.push({ ...c, lastPsych, daysSincePsych, reason: null });
       }
       if (!isNotViable && hasPsych && hasAssess && !hasTherapy && daysSinceAssess !== null && daysSinceAssess <= 90) {
         assessOnly.push({ ...c, lastAssess, daysSinceAssess, daysSincePsych, reason: null });
+      } else if (!isNotViable && hasPsych && hasAssess && !hasTherapy && daysSinceAssess !== null && daysSinceAssess > 90) {
+        staleAssess.push({ ...c, lastAssess, daysSinceAssess, daysSincePsych, reason: null });
       }
       if (hasPsych && hasAssess) {
         const daysPsychToAssess = Math.floor((new Date(Math.min(...c.assessDates)) - lastPsych) / 86400000);
@@ -534,7 +537,7 @@ const WeeklyBillingTrends = () => {
 
     const knownIds = new Set(Object.keys(idToName));
     const notViableCount = Object.entries(notViableReasons).filter(([k, v]) => v && (knownIds.has(k) || Object.values(clients).some(c => c.name === k))).length;
-    const totalPsych = psychToAssessConverted.length + notViableCount;
+    const totalPsych = psychCount - psychOnly.length; // exclude still-active leads
     const totalAssess = assessCount;
     const psychToAssessRate = totalPsych > 0 ? (psychToAssessConverted.length / totalPsych * 100).toFixed(0) : 0;
     const assessToTherapyRate = totalAssess > 0 ? (assessToTherapyConverted.length / totalAssess * 100).toFixed(0) : 0;
@@ -549,6 +552,7 @@ const WeeklyBillingTrends = () => {
       },
       needsAssess: { count: psychOnly.length, clients: psychOnly.sort((a, b) => a.daysSincePsych - b.daysSincePsych) },
       needsTherapy: { count: assessOnly.length, clients: assessOnly.sort((a, b) => a.daysSinceAssess - b.daysSinceAssess) },
+      staleAssess: staleAssess.sort((a, b) => b.daysSinceAssess - a.daysSinceAssess),
       notViableCount,
       psychToAssessRate, assessToTherapyRate,
       avgDaysPsychToAssess, avgDaysAssessToTherapy,
@@ -716,6 +720,8 @@ const WeeklyBillingTrends = () => {
       clients = conversionFunnel.needsAssess.clients; title = `Needs ABA Assessment (${clients.length})`; emptyMsg = 'All psych clients have started assessment!';
     } else if (activeFunnelStage === 'needsTherapy') {
       clients = conversionFunnel.needsTherapy.clients; title = `Needs ABA Therapy (${clients.length})`; emptyMsg = 'All assessed clients have started therapy!';
+    } else if (activeFunnelStage === 'staleAssess') {
+      clients = conversionFunnel.staleAssess; title = `Stale — Had Assessment, No Therapy (${clients.length})`; emptyMsg = 'No stale clients.';
     } else if (activeFunnelStage === 'converted12') {
       clients = conversionFunnel.psychToAssessConverted; title = `Psych → Assessment Conversions (${clients.length})`; emptyMsg = 'No conversions yet.';
     } else if (activeFunnelStage === 'converted23') {
@@ -993,6 +999,11 @@ const WeeklyBillingTrends = () => {
                   <div>
                     <span className="stage-count assess">{conversionFunnel.needsTherapy.count}</span>
                     <div className="stage-meta">active leads — no therapy yet</div>
+                    {conversionFunnel.staleAssess.length > 0 && (
+                      <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono', marginTop: 2, cursor: 'pointer', textDecoration: 'underline' }} onClick={e => { e.stopPropagation(); setActiveFunnelStage(p => p === 'staleAssess' ? null : 'staleAssess'); }}>
+                        {conversionFunnel.staleAssess.length} stale (&gt;90d)
+                      </div>
+                    )}
                   </div>
                   <button style={{ fontSize: 11, color: 'var(--amber)', background: 'var(--amber-dim)', border: '1px solid rgba(240,168,50,0.3)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: 'DM Mono' }} onClick={e => { e.stopPropagation(); setActiveFunnelStage(p => p === 'converted23' ? null : 'converted23'); }}>
                     {conversionFunnel.assessToTherapyConverted.length} started therapy ↓
