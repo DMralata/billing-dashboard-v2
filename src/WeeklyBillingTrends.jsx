@@ -959,17 +959,17 @@ const WeeklyBillingTrends = () => {
               <div className={`funnel-stage ${activeFunnelStage === 'needsAssess' ? 'active' : ''}`} onClick={() => setActiveFunnelStage(prev => prev === 'needsAssess' ? null : 'needsAssess')}>
                 <div className="stage-header">
                   <span className="stage-code">90791, 96130–96137</span>
-                  <span className="fcr-badge badge-blue">{conversionFunnel.stages.psych.count} clients</span>
+                  <span className="fcr-badge badge-blue">{conversionFunnel.stages.psych.count} ever evaluated</span>
                 </div>
                 <div className="stage-name">Psych Assessment</div>
                 <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                   <div>
                     <span className="stage-count psych">{conversionFunnel.needsAssess.count}</span>
-                    <div className="stage-meta">awaiting 97151</div>
-                    {conversionFunnel.notViableCount > 0 && <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono', marginTop: 2 }}>{conversionFunnel.notViableCount} written off</div>}
+                    <div className="stage-meta">active leads — no ABA assessment yet</div>
+                    {conversionFunnel.notViableCount > 0 && <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono', marginTop: 2 }}>{conversionFunnel.notViableCount} written off (not pursuing)</div>}
                   </div>
                   <button style={{ fontSize: 11, color: 'var(--blue)', background: 'var(--blue-dim)', border: '1px solid rgba(88,166,255,0.3)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: 'DM Mono' }} onClick={e => { e.stopPropagation(); setActiveFunnelStage(p => p === 'converted12' ? null : 'converted12'); }}>
-                    {conversionFunnel.psychToAssessConverted.length} converted ↓
+                    {conversionFunnel.psychToAssessConverted.length} reached assessment ↓
                   </button>
                 </div>
               </div>
@@ -978,23 +978,24 @@ const WeeklyBillingTrends = () => {
               <div className="funnel-connector" style={{ flexDirection: 'column', padding: '0 12px' }}>
                 <ChevronRight size={20} color="var(--muted)" />
                 <div className="conv-rate">{conversionFunnel.psychToAssessRate}%</div>
-                <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono', marginTop: 4 }}>avg {conversionFunnel.avgDaysPsychToAssess}d</div>
+                <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono', marginTop: 4 }}>converted</div>
+                <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono', marginTop: 2 }}>avg {conversionFunnel.avgDaysPsychToAssess}d</div>
               </div>
 
               {/* Stage 2 */}
               <div className={`funnel-stage ${activeFunnelStage === 'needsTherapy' ? 'active' : ''}`} onClick={() => setActiveFunnelStage(prev => prev === 'needsTherapy' ? null : 'needsTherapy')}>
                 <div className="stage-header">
                   <span className="stage-code">97151</span>
-                  <span className="fcr-badge badge-amber">{conversionFunnel.stages.assess.count} clients</span>
+                  <span className="fcr-badge badge-amber">{conversionFunnel.stages.assess.count} came from psych</span>
                 </div>
                 <div className="stage-name">ABA Assessment</div>
                 <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                   <div>
                     <span className="stage-count assess">{conversionFunnel.needsTherapy.count}</span>
-                    <div className="stage-meta">awaiting 97153</div>
+                    <div className="stage-meta">active leads — no therapy yet</div>
                   </div>
                   <button style={{ fontSize: 11, color: 'var(--amber)', background: 'var(--amber-dim)', border: '1px solid rgba(240,168,50,0.3)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: 'DM Mono' }} onClick={e => { e.stopPropagation(); setActiveFunnelStage(p => p === 'converted23' ? null : 'converted23'); }}>
-                    {conversionFunnel.assessToTherapyConverted.length} converted ↓
+                    {conversionFunnel.assessToTherapyConverted.length} started therapy ↓
                   </button>
                 </div>
               </div>
@@ -1003,19 +1004,20 @@ const WeeklyBillingTrends = () => {
               <div className="funnel-connector" style={{ flexDirection: 'column', padding: '0 12px' }}>
                 <ChevronRight size={20} color="var(--muted)" />
                 <div className="conv-rate">{conversionFunnel.assessToTherapyRate}%</div>
-                <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono', marginTop: 4 }}>avg {conversionFunnel.avgDaysAssessToTherapy}d</div>
+                <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono', marginTop: 4 }}>converted</div>
+                <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono', marginTop: 2 }}>avg {conversionFunnel.avgDaysAssessToTherapy}d</div>
               </div>
 
               {/* Stage 3 */}
               <div className="funnel-stage" style={{ cursor: 'default' }}>
                 <div className="stage-header">
                   <span className="stage-code">97153</span>
-                  <span className="fcr-badge badge-green">{conversionFunnel.stages.therapy.count} clients</span>
+                  <span className="fcr-badge badge-green">{conversionFunnel.stages.therapy.count} came from psych</span>
                 </div>
                 <div className="stage-name">ABA Therapy</div>
                 <div style={{ marginTop: 8 }}>
                   <span className="stage-count therapy">{conversionFunnel.stages.therapy.count}</span>
-                  <div className="stage-meta">active in therapy</div>
+                  <div className="stage-meta">currently receiving therapy</div>
                 </div>
               </div>
             </div>
