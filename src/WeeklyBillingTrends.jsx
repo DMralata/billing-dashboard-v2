@@ -217,8 +217,8 @@ const heatColor = (hours, max) => {
 
 /* ─── Main component ───────────────────────────────────────────── */
 const WeeklyBillingTrends = () => {
-  const BILLING_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRl4fX-z2VZKQveQMinCvaSaedp0nwEF5WV1Lp1Tfon7YHY54FKafl0GTLtDxNmpZL40KWhznzseZ14/pub?output=csv';
-  const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1RIV-wZCmC3mYTqOXu7Gk6-z-pT_HcXYIL459eWp2SMo/pub?output=csv&gid=0';
+  const BILLING_SHEET_URL = 'https://corsproxy.io/?https://docs.google.com/spreadsheets/d/e/2PACX-1vRl4fX-z2VZKQveQMinCvaSaedp0nwEF5WV1Lp1Tfon7YHY54FKafl0GTLtDxNmpZL40KWhznzseZ14/pub?output=csv';
+  const SHEET_URL = 'https://corsproxy.io/?https://docs.google.com/spreadsheets/d/1RIV-wZCmC3mYTqOXu7Gk6-z-pT_HcXYIL459eWp2SMo/pub?output=csv&gid=0';
   const [selectedMetric, setSelectedMetric] = useState('revenue');
   const [rawData, setRawData] = useState([]);
   const [showUpload, setShowUpload] = useState(false);
@@ -273,9 +273,8 @@ const WeeklyBillingTrends = () => {
     setLoadStatus({ type: 'loading', message: 'Loading billing data…' });
     try {
       const resp = await fetch(BILLING_SHEET_URL);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status} — sheet must be published to the web: File → Share → Publish to web → select sheet → CSV → Publish.`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const text = await resp.text();
-      // Check if we got an HTML redirect (auth wall) instead of CSV
       if (text.trim().startsWith('<!')) throw new Error('Sheet returned an HTML page — publish it to the web: File → Share → Publish to web → CSV.');
       const parsed = parseCSV(text);
       if (parsed.length === 0) throw new Error('No valid billing rows found. Check that the sheet tab matches the expected column headers.');
