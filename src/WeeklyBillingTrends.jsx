@@ -552,8 +552,8 @@ const WeeklyBillingTrends = () => {
       notViableCount,
       psychToAssessRate, assessToTherapyRate,
       avgDaysPsychToAssess, avgDaysAssessToTherapy,
-      psychToAssessConverted: psychToAssessConverted.sort((a, b) => a.daysPsychToAssess - b.daysPsychToAssess).slice(0, 10),
-      assessToTherapyConverted: assessToTherapyConverted.sort((a, b) => a.daysAssessToTherapy - b.daysAssessToTherapy).slice(0, 10),
+      psychToAssessConverted: psychToAssessConverted.sort((a, b) => a.daysPsychToAssess - b.daysPsychToAssess),
+      assessToTherapyConverted: assessToTherapyConverted.sort((a, b) => a.daysAssessToTherapy - b.daysAssessToTherapy),
     };
   }, [rawData, notViableReasons]);
 
