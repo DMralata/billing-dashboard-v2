@@ -313,7 +313,9 @@ const WeeklyBillingTrends = () => {
 
     const dateIdx = idx('DateOfService'), agreedIdx = idx('ClientChargesAgreedTotal'),
       unitsIdx = idx('UnitsOfService'), hoursIdx = idx('TimeWorkedInHours'),
-      fnIdx = idx('ClientFirstName'), lnIdx = idx('ClientLastName'), codeIdx = idx('ProcedureCode');
+      fnIdx = idx('ClientFirstName'), lnIdx = idx('ClientLastName'), codeIdx = idx('ProcedureCode'),
+      clientIdIdx = ['ClientId','ClientID','PatientId','PatientID','MemberId','MemberID','ClientNumber','ClientCode']
+                    .map(n => idx(n)).find(i => i >= 0) ?? -1;
 
     // Provider/staff name — try multiple common column name patterns
     const staffFnIdx = ['StaffFirstName','ProviderFirstName','EmployeeFirstName','RenderingProviderFirstName',
@@ -357,6 +359,7 @@ const WeeklyBillingTrends = () => {
         UnitsOfService: parseFloat(vals[unitsIdx]?.replace(/^"|"$/g, '') || 0),
         TimeWorkedInHours: parseFloat(vals[hoursIdx]?.replace(/^"|"$/g, '') || 0),
         ClientName: `${fn} ${ln}`.trim(),
+        ClientId: clientIdIdx >= 0 ? vals[clientIdIdx]?.trim().replace(/^"|"$/g, '') || '' : '',
         ProcedureCode: vals[codeIdx]?.trim().replace(/^"|"$/g, '') || '',
         StaffName: staffName
       });
@@ -477,8 +480,10 @@ const WeeklyBillingTrends = () => {
     const THERAPY = ['97153'];
 
     const clients = {};
+    const idToName = {}; // maps clientId → ClientName
     rawData.forEach(entry => {
       const name = entry.ClientName; if (!name || name === ' ') return;
+      if (entry.ClientId) idToName[entry.ClientId] = name;
       if (!clients[name]) clients[name] = { name, psychDates: [], assessDates: [], therapyDates: [] };
       const date = parseDate(entry.DateOfService);
       if (!date || isNaN(date.getTime())) return;
@@ -496,7 +501,9 @@ const WeeklyBillingTrends = () => {
       const hasPsych = c.psychDates.length > 0;
       const hasAssess = c.assessDates.length > 0;
       const hasTherapy = c.therapyDates.length > 0;
-      const isNotViable = !!notViableReasons[c.name];
+      // Find the client's ID if we have one, and look up not-viable by ID or name
+      const clientId = Object.keys(idToName).find(id => idToName[id] === c.name) || null;
+      const isNotViable = !!(notViableReasons[clientId] || notViableReasons[c.name]);
 
       if (hasPsych) psychCount++;
       if (hasAssess) assessCount++;
@@ -526,7 +533,8 @@ const WeeklyBillingTrends = () => {
       }
     });
 
-    const notViableCount = Object.values(notViableReasons).filter(Boolean).length;
+    const knownIds = new Set(Object.keys(idToName));
+    const notViableCount = Object.entries(notViableReasons).filter(([k, v]) => v && (knownIds.has(k) || Object.values(clients).some(c => c.name === k))).length;
     const totalPsych = psychOnly.length + psychToAssessConverted.length;
     const totalAssess = assessOnly.length + assessToTherapyConverted.length;
     const psychToAssessRate = totalPsych > 0 ? (psychToAssessConverted.length / totalPsych * 100).toFixed(0) : 0;
