@@ -494,7 +494,7 @@ const WeeklyBillingTrends = () => {
     });
 
     const now = new Date();
-    const psychOnly = [], assessOnly = [], therapy = [], psychToAssessConverted = [], assessToTherapyConverted = [];
+    const psychOnly = [], assessOnly = [], staleAssess = [], therapy = [], psychToAssessConverted = [], assessToTherapyConverted = [];
     let psychCount = 0, assessCount = 0, therapyCount = 0;
 
     Object.values(clients).forEach(c => {
@@ -506,7 +506,7 @@ const WeeklyBillingTrends = () => {
       const isNotViable = !!(notViableReasons[clientId] || notViableReasons[c.name]);
 
       if (hasPsych) psychCount++;
-      if (hasAssess && hasPsych) assessCount++; // unique clients with both psych and 97151
+      if (hasAssess && hasPsych) assessCount++;
       if (hasTherapy && hasPsych) therapyCount++;
 
       const lastPsych = hasPsych ? new Date(Math.max(...c.psychDates)) : null;
@@ -516,7 +516,6 @@ const WeeklyBillingTrends = () => {
       const daysSinceAssess = lastAssess ? Math.floor((now - lastAssess) / 86400000) : null;
 
       // Exclude not-viable from awaiting lists
-      const staleAssess = [];
       if (!isNotViable && hasPsych && !hasAssess && !hasTherapy && daysSincePsych <= 90) {
         psychOnly.push({ ...c, lastPsych, daysSincePsych, reason: null });
       }
