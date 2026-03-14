@@ -506,8 +506,7 @@ const WeeklyBillingTrends = () => {
       const isNotViable = !!(notViableReasons[clientId] || notViableReasons[c.name]);
 
       if (hasPsych) psychCount++;
-      if (hasAssess) assessCount++;
-      // Only count 97153 clients who came through a prior stage
+      if (hasAssess && hasPsych) assessCount++; // only count assessment clients who came through psych
       if (hasTherapy && hasPsych) therapyCount++;
 
       const lastPsych = hasPsych ? new Date(Math.max(...c.psychDates)) : null;
@@ -535,8 +534,8 @@ const WeeklyBillingTrends = () => {
 
     const knownIds = new Set(Object.keys(idToName));
     const notViableCount = Object.entries(notViableReasons).filter(([k, v]) => v && (knownIds.has(k) || Object.values(clients).some(c => c.name === k))).length;
-    const totalPsych = psychOnly.length + psychToAssessConverted.length;
-    const totalAssess = assessOnly.length + assessToTherapyConverted.length;
+    const totalPsych = psychToAssessConverted.length + notViableCount;
+    const totalAssess = assessToTherapyConverted.length;
     const psychToAssessRate = totalPsych > 0 ? (psychToAssessConverted.length / totalPsych * 100).toFixed(0) : 0;
     const assessToTherapyRate = totalAssess > 0 ? (assessToTherapyConverted.length / totalAssess * 100).toFixed(0) : 0;
     const avgDaysPsychToAssess = psychToAssessConverted.length > 0 ? Math.round(psychToAssessConverted.reduce((s, c) => s + c.daysPsychToAssess, 0) / psychToAssessConverted.length) : 0;
