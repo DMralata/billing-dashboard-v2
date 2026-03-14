@@ -506,7 +506,7 @@ const WeeklyBillingTrends = () => {
       const isNotViable = !!(notViableReasons[clientId] || notViableReasons[c.name]);
 
       if (hasPsych) psychCount++;
-      if (hasAssess && hasPsych) assessCount++; // only count assessment clients who came through psych
+      if (hasAssess && hasPsych) assessCount++; // unique clients with both psych and 97151
       if (hasTherapy && hasPsych) therapyCount++;
 
       const lastPsych = hasPsych ? new Date(Math.max(...c.psychDates)) : null;
@@ -526,7 +526,7 @@ const WeeklyBillingTrends = () => {
         const daysPsychToAssess = Math.floor((new Date(Math.min(...c.assessDates)) - lastPsych) / 86400000);
         psychToAssessConverted.push({ ...c, daysPsychToAssess: Math.abs(daysPsychToAssess) });
       }
-      if (hasAssess && hasTherapy) {
+      if (hasPsych && hasAssess && hasTherapy) {
         const daysAssessToTherapy = Math.floor((firstTherapy - new Date(Math.min(...c.assessDates))) / 86400000);
         assessToTherapyConverted.push({ ...c, daysAssessToTherapy: Math.abs(daysAssessToTherapy), firstTherapy });
       }
