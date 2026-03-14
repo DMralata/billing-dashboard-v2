@@ -519,7 +519,7 @@ const WeeklyBillingTrends = () => {
       if (!isNotViable && hasPsych && !hasAssess && !hasTherapy && daysSincePsych <= 90) {
         psychOnly.push({ ...c, lastPsych, daysSincePsych, reason: null });
       }
-      if (!isNotViable && hasAssess && !hasTherapy && daysSinceAssess !== null && daysSinceAssess <= 90) {
+      if (!isNotViable && hasPsych && hasAssess && !hasTherapy && daysSinceAssess !== null && daysSinceAssess <= 90) {
         assessOnly.push({ ...c, lastAssess, daysSinceAssess, daysSincePsych, reason: null });
       }
       if (hasPsych && hasAssess) {
