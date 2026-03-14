@@ -496,10 +496,12 @@ const WeeklyBillingTrends = () => {
       const hasPsych = c.psychDates.length > 0;
       const hasAssess = c.assessDates.length > 0;
       const hasTherapy = c.therapyDates.length > 0;
+      const isNotViable = !!notViableReasons[c.name];
 
       if (hasPsych) psychCount++;
       if (hasAssess) assessCount++;
-      if (hasTherapy) therapyCount++;
+      // Only count 97153 clients who came through a prior stage
+      if (hasTherapy && (hasPsych || hasAssess)) therapyCount++;
 
       const lastPsych = hasPsych ? new Date(Math.max(...c.psychDates)) : null;
       const lastAssess = hasAssess ? new Date(Math.max(...c.assessDates)) : null;
@@ -507,11 +509,12 @@ const WeeklyBillingTrends = () => {
       const daysSincePsych = lastPsych ? Math.floor((now - lastPsych) / 86400000) : null;
       const daysSinceAssess = lastAssess ? Math.floor((now - lastAssess) / 86400000) : null;
 
-      if (hasPsych && !hasAssess && !hasTherapy && daysSincePsych <= 90) {
-        psychOnly.push({ ...c, lastPsych, daysSincePsych, reason: notViableReasons[c.name] || null });
+      // Exclude not-viable from awaiting lists
+      if (!isNotViable && hasPsych && !hasAssess && !hasTherapy && daysSincePsych <= 90) {
+        psychOnly.push({ ...c, lastPsych, daysSincePsych, reason: null });
       }
-      if (hasAssess && !hasTherapy && daysSinceAssess !== null && daysSinceAssess <= 90) {
-        assessOnly.push({ ...c, lastAssess, daysSinceAssess, daysSincePsych, reason: notViableReasons[c.name] || null });
+      if (!isNotViable && hasAssess && !hasTherapy && daysSinceAssess !== null && daysSinceAssess <= 90) {
+        assessOnly.push({ ...c, lastAssess, daysSinceAssess, daysSincePsych, reason: null });
       }
       if (hasPsych && hasAssess) {
         const daysPsychToAssess = Math.floor((new Date(Math.min(...c.assessDates)) - lastPsych) / 86400000);
@@ -523,6 +526,7 @@ const WeeklyBillingTrends = () => {
       }
     });
 
+    const notViableCount = Object.values(notViableReasons).filter(Boolean).length;
     const totalPsych = psychOnly.length + psychToAssessConverted.length;
     const totalAssess = assessOnly.length + assessToTherapyConverted.length;
     const psychToAssessRate = totalPsych > 0 ? (psychToAssessConverted.length / totalPsych * 100).toFixed(0) : 0;
@@ -538,6 +542,7 @@ const WeeklyBillingTrends = () => {
       },
       needsAssess: { count: psychOnly.length, clients: psychOnly.sort((a, b) => a.daysSincePsych - b.daysSincePsych) },
       needsTherapy: { count: assessOnly.length, clients: assessOnly.sort((a, b) => a.daysSinceAssess - b.daysSinceAssess) },
+      notViableCount,
       psychToAssessRate, assessToTherapyRate,
       avgDaysPsychToAssess, avgDaysAssessToTherapy,
       psychToAssessConverted: psychToAssessConverted.sort((a, b) => a.daysPsychToAssess - b.daysPsychToAssess).slice(0, 10),
@@ -954,6 +959,7 @@ const WeeklyBillingTrends = () => {
                   <div>
                     <span className="stage-count psych">{conversionFunnel.needsAssess.count}</span>
                     <div className="stage-meta">awaiting 97151</div>
+                    {conversionFunnel.notViableCount > 0 && <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono', marginTop: 2 }}>{conversionFunnel.notViableCount} written off</div>}
                   </div>
                   <button style={{ fontSize: 11, color: 'var(--blue)', background: 'var(--blue-dim)', border: '1px solid rgba(88,166,255,0.3)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: 'DM Mono' }} onClick={e => { e.stopPropagation(); setActiveFunnelStage(p => p === 'converted12' ? null : 'converted12'); }}>
                     {conversionFunnel.psychToAssessConverted.length} converted ↓
