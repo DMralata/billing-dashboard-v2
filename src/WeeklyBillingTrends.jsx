@@ -217,13 +217,18 @@ const heatColor = (hours, max) => {
 
 /* ─── Main component ───────────────────────────────────────────── */
 const WeeklyBillingTrends = () => {
-  const BILLING_SHEET_URL = '/api/sheets-proxy?url=' + encodeURIComponent('https://docs.google.com/spreadsheets/d/e/2PACX-1vRl4fX-z2VZKQveQMinCvaSaedp0nwEF5WV1Lp1Tfon7YHY54FKafl0GTLtDxNmpZL40KWhznzseZ14/pub?output=csv');
-  const SHEET_URL = '/api/sheets-proxy?url=' + encodeURIComponent('https://docs.google.com/spreadsheets/d/1RIV-wZCmC3mYTqOXu7Gk6-z-pT_HcXYIL459eWp2SMo/pub?output=csv&gid=0');
+  const BILLING_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRl4fX-z2VZKQveQMinCvaSaedp0nwEF5WV1Lp1Tfon7YHY54FKafl0GTLtDxNmpZL40KWhznzseZ14/pub?output=csv';
+  const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtnnHeo2rSw_8bp6ZgWLE0EfIaTo6P8jheOGpBTY_hKfmchsCEr0yAe4Hz0r_Tj5FenXbZ1tGpC62p/pub?gid=0&single=true&output=csv';
   const [selectedMetric, setSelectedMetric] = useState('revenue');
   const [rawData, setRawData] = useState([]);
   const [showUpload, setShowUpload] = useState(false);
   const [loadStatus, setLoadStatus] = useState({ type: 'loading', message: 'Loading billing data…' });
-  const [notViableReasons, setNotViableReasons] = useState({});
+  const [notViableReasons, setNotViableReasons] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ata_notViableReasons');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
   const [activeFunnelStage, setActiveFunnelStage] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
   const [profitSort, setProfitSort] = useState('gp'); // 'gp' | 'margin' | 'revenue' | 'hours'
@@ -252,7 +257,11 @@ const WeeklyBillingTrends = () => {
         const reason = reasonIdx >= 0 ? vals[reasonIdx] : '';
         if (name && reason) { updates[name] = reason; count++; }
       }
-      setNotViableReasons(prev => ({ ...prev, ...updates }));
+      setNotViableReasons(prev => {
+        const updated = { ...prev, ...updates };
+        try { localStorage.setItem('ata_notViableReasons', JSON.stringify(updated)); } catch {}
+        return updated;
+      });
       setSheetStatus({ type: 'success', message: `✓ Synced ${count} reason${count !== 1 ? 's' : ''} from Google Sheet.` });
     } catch (err) {
       setSheetStatus({ type: 'error', message: `✗ ${err.message}` });
@@ -264,9 +273,8 @@ const WeeklyBillingTrends = () => {
     setLoadStatus({ type: 'loading', message: 'Loading billing data…' });
     try {
       const resp = await fetch(BILLING_SHEET_URL);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status} — sheet must be published to the web: File → Share → Publish to web → select sheet → CSV → Publish.`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const text = await resp.text();
-      // Check if we got an HTML redirect (auth wall) instead of CSV
       if (text.trim().startsWith('<!')) throw new Error('Sheet returned an HTML page — publish it to the web: File → Share → Publish to web → CSV.');
       const parsed = parseCSV(text);
       if (parsed.length === 0) throw new Error('No valid billing rows found. Check that the sheet tab matches the expected column headers.');
@@ -723,7 +731,7 @@ const WeeklyBillingTrends = () => {
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   {(activeFunnelStage === 'needsAssess' || activeFunnelStage === 'needsTherapy') && (
-                    <select className="not-viable-select" value={notViableReasons[c.name] || ''} onChange={e => setNotViableReasons(p => ({ ...p, [c.name]: e.target.value || null }))}>
+                    <select className="not-viable-select" value={notViableReasons[c.name] || ''} onChange={e => setNotViableReasons(p => { const updated = { ...p, [c.name]: e.target.value || null }; try { localStorage.setItem('ata_notViableReasons', JSON.stringify(updated)); } catch {} return updated; })}>
                       <option value="">Active Lead</option>
                       <option value="Insurance">Insurance</option>
                       <option value="No Response">No Response</option>
